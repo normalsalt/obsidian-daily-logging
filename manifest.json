@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"id": "daily-logging",
+	"name": "Daily Logging",
+	"version": "0.1.0",
+	"minAppVersion": "1.13.0",
+	"description": "Automatically log the time and a link to each file you create or modify in your daily note.",
+	"author": "normalsalt",
+	"authorUrl": "https://github.com/normalsalt",
 	"isDesktopOnly": false
 }
