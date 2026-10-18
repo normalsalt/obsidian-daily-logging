@@ -1,17 +1,22 @@
-import {
-	App,
-	PluginSettingTab,
-	SettingDefinitionItem,
-} from 'obsidian';
+import { App, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
 import DailyLoggingPlugin from './main';
 
 export interface DailyLoggingSettings {
-	mySetting: string;
+	extensions: string;
 }
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
-	mySetting: 'default',
+	extensions: 'md',
 };
+
+export function parseExtensions(value: string): Set<string> {
+	return new Set(
+		value
+			.split(/[\s,]+/)
+			.map((ext) => ext.trim().replace(/^\.+/, '').toLowerCase())
+			.filter((ext) => ext !== ''),
+	);
+}
 
 export class DailyLoggingSettingTab extends PluginSettingTab {
 	plugin: DailyLoggingPlugin;
@@ -24,8 +29,9 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem<keyof DailyLoggingSettings>[] {
 		return [
 			{
-				name: 'Setting #1',
-				control: { type: 'text', key: 'mySetting', placeholder: 'default' },
+				name: 'File extensions',
+				desc: 'Comma-separated list of file extensions to log when a file is created, for example: md, canvas, base',
+				control: { type: 'text', key: 'extensions', placeholder: 'md' },
 			},
 		];
 	}
