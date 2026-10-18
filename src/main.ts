@@ -1,6 +1,7 @@
 import { Plugin, TAbstractFile, TFile, moment } from 'obsidian';
 import { DEFAULT_SETTINGS, DailyLoggingSettings, DailyLoggingSettingTab, parseExtensions } from './settings';
-import { appendToDailyNote, getDailyNotes, isDailyNote } from './daily-notes';
+import { appendLine, getDailyNotes, isDailyNote, updateDailyNote } from './daily-notes';
+import { insertUnderHeading, parseTimeSlots, resolvePlacement } from './time-slots';
 
 export default class DailyLoggingPlugin extends Plugin {
 	settings!: DailyLoggingSettings;
@@ -33,9 +34,16 @@ export default class DailyLoggingPlugin extends Plugin {
 			if (isDailyNote(file, dn)) return; // デイリーノート自身は対象外
 			if (!this.app.vault.getFileByPath(file.path)) return; // 処理を待つ間に削除された
 
-			await appendToDailyNote(this.app, dn, createdAt, (dailyNote) => {
+			const { useHeadings, headingRule, logToPreviousDay, timeSlots } = this.settings;
+			const slots = useHeadings ? parseTimeSlots(timeSlots).slots : [];
+			const { date, slot } = resolvePlacement(createdAt, slots, logToPreviousDay);
+
+			await updateDailyNote(this.app, dn, date, (data, dailyNote) => {
 				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
-				return `- ${createdAt.format('HH:mm')} ${link}`;
+				const line = `- ${createdAt.format('HH:mm')} ${link}`;
+				return slot
+					? insertUnderHeading(data, slot, slots, line, headingRule)
+					: appendLine(data, line);
 			});
 		});
 	}

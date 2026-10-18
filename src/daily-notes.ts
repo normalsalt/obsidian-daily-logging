@@ -81,20 +81,22 @@ export function isDailyNote(file: TFile, dn: DailyNotesInstance): boolean {
 	return moment(rel, formatOf(dn), true).isValid();
 }
 
-/** 指定日のデイリーノートを取得（なければテンプレート付きで作成）し、末尾に1行追記する */
-export async function appendToDailyNote(
+/** 指定日のデイリーノートを取得（なければテンプレート付きで作成）し、内容を書き換える */
+export async function updateDailyNote(
 	app: App,
 	dn: DailyNotesInstance,
 	date: Moment,
-	makeLine: (dailyNote: TFile) => string,
+	update: (data: string, dailyNote: TFile) => string,
 ): Promise<void> {
 	const dailyNote = await dn.getDailyNote(date);
 	if (!(dailyNote instanceof TFile)) {
 		throw new Error('Could not get the daily note.');
 	}
-	const line = makeLine(dailyNote);
-	await app.vault.process(dailyNote, (data) => {
-		const sep = data === '' || data.endsWith('\n') ? '' : '\n';
-		return `${data}${sep}${line}\n`;
-	});
+	await app.vault.process(dailyNote, (data) => update(data, dailyNote));
+}
+
+/** 末尾に1行追記する */
+export function appendLine(data: string, line: string): string {
+	const sep = data === '' || data.endsWith('\n') ? '' : '\n';
+	return `${data}${sep}${line}\n`;
 }
