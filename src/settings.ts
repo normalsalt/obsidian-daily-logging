@@ -3,11 +3,30 @@ import DailyLoggingPlugin from './main';
 import { parseTimeSlots } from './time-slots';
 
 export interface DailyLoggingSettings {
+	/** 記録する拡張子（カンマ区切り） */
 	extensions: string;
+	/** 時間帯の見出しの下に追記する */
 	useHeadings: boolean;
+	/** 新しく作る見出しの下に区切り線（---）を入れる */
 	headingRule: boolean;
+	/** 最初の時間帯より前は、前日の最後の時間帯に追記する */
 	logToPreviousDay: boolean;
+	/** 「時刻 | 見出し | タグ」を1行に1つ */
 	timeSlots: string;
+
+	/** タスクのプロパティ名 */
+	cycleProp: string;
+	sectionProp: string;
+	scheduledProp: string;
+	startProp: string;
+	endProp: string;
+	/** 周期の値の表記 */
+	everydayValue: string;
+	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
+	weekdayValues: string;
+	/** デイリーノートに記録する言葉 */
+	startLabel: string;
+	endLabel: string;
 }
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
@@ -22,6 +41,16 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 		'17:00 | イブニング・ルーティーン | evening',
 		'21:00 | ナイト・ルーティーン | night',
 	].join('\n'),
+
+	cycleProp: '周期',
+	sectionProp: 'セクション',
+	scheduledProp: '予定日時',
+	startProp: '開始日時',
+	endProp: '終了日時',
+	everydayValue: '毎日',
+	weekdayValues: '月曜日, 火曜日, 水曜日, 木曜日, 金曜日, 土曜日, 日曜日',
+	startLabel: '開始',
+	endLabel: '終了',
 };
 
 /** "md, .Canvas  pdf" → Set { 'md', 'canvas', 'pdf' } */
@@ -34,6 +63,15 @@ export function parseExtensions(value: string): Set<string> {
 	);
 }
 
+/** 曜日の表記を月曜日から順に返す。7つでなければ null */
+export function parseWeekdays(value: string): string[] | null {
+	const days = value
+		.split(',')
+		.map((s) => s.trim())
+		.filter((s) => s !== '');
+	return days.length === 7 ? days : null;
+}
+
 export class DailyLoggingSettingTab extends PluginSettingTab {
 	plugin: DailyLoggingPlugin;
 
@@ -43,6 +81,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem<keyof DailyLoggingSettings>[] {
+		const d = DEFAULT_SETTINGS;
 		return [
 			{
 				name: 'File extensions',
@@ -76,6 +115,57 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					rows: 6,
 					validate: (value) => parseTimeSlots(value).errors.join(' '),
 				},
+			},
+			{
+				name: 'Cycle property',
+				desc: 'List property that holds the days a task appears in the sidebar.',
+				control: { type: 'text', key: 'cycleProp', placeholder: d.cycleProp },
+			},
+			{
+				name: 'Section property',
+				desc: 'Text property that holds the tag of a time slot.',
+				control: { type: 'text', key: 'sectionProp', placeholder: d.sectionProp },
+			},
+			{
+				name: 'Scheduled property',
+				desc: 'Date or date & time property. Cleared when the task is finished.',
+				control: { type: 'text', key: 'scheduledProp', placeholder: d.scheduledProp },
+			},
+			{
+				name: 'Start property',
+				desc: 'Date & time property set when a task is started.',
+				control: { type: 'text', key: 'startProp', placeholder: d.startProp },
+			},
+			{
+				name: 'End property',
+				desc: 'Date & time property set when a task is finished.',
+				control: { type: 'text', key: 'endProp', placeholder: d.endProp },
+			},
+			{
+				name: 'Every day value',
+				desc: 'Cycle value that matches every day.',
+				control: { type: 'text', key: 'everydayValue', placeholder: d.everydayValue },
+			},
+			{
+				name: 'Weekday values',
+				desc: 'Comma-separated cycle values from Monday to Sunday.',
+				control: {
+					type: 'text',
+					key: 'weekdayValues',
+					placeholder: d.weekdayValues,
+					validate: (value) =>
+						parseWeekdays(value) ? '' : 'Enter exactly 7 values, from Monday to Sunday.',
+				},
+			},
+			{
+				name: 'Start label',
+				desc: 'Word written after the link when a task is started.',
+				control: { type: 'text', key: 'startLabel', placeholder: d.startLabel },
+			},
+			{
+				name: 'End label',
+				desc: 'Word written after the link when a task is finished.',
+				control: { type: 'text', key: 'endLabel', placeholder: d.endLabel },
 			},
 		];
 	}
