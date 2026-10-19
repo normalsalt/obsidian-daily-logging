@@ -17,6 +17,8 @@ import {
 import { TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 
+type Moment = ReturnType<typeof moment>;
+
 export default class DailyLoggingPlugin extends Plugin {
 	settings!: DailyLoggingSettings;
 
@@ -44,8 +46,11 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!(file instanceof TFile)) return;
 		if (!parseExtensions(this.settings.extensions).has(file.extension.toLowerCase())) return;
 
-		const createdAt = moment(); // 処理を待つ間に時刻がずれないよう、ここで記録する
+		this.logEntry(file, moment()); // 処理を待つ間に時刻がずれないよう、ここで記録する
+	}
 
+	/** デイリーノートの、時刻に合う場所に1行記録する（キューで順番に処理） */
+	private logEntry(file: TFile, at: Moment, suffix = ''): void {
 		this.enqueue(async () => {
 			const dn = getDailyNotes(this.app);
 			if (!dn) return; // デイリーノートが無効
@@ -54,11 +59,11 @@ export default class DailyLoggingPlugin extends Plugin {
 
 			const { useHeadings, headingRule, logToPreviousDay, timeSlots } = this.settings;
 			const slots = useHeadings ? parseTimeSlots(timeSlots).slots : [];
-			const { date, slot } = resolvePlacement(createdAt, slots, logToPreviousDay);
+			const { date, slot } = resolvePlacement(at, slots, logToPreviousDay);
 
 			await updateDailyNote(this.app, dn, date, (data, dailyNote) => {
 				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
-				const line = `- ${createdAt.format('HH:mm')} ${link}`;
+				const line = `- ${at.format('HH:mm')} ${link}${suffix}`;
 				return slot
 					? insertUnderHeading(data, slot, slots, line, headingRule)
 					: appendLine(data, line);
