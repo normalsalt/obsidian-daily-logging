@@ -61,6 +61,16 @@ export function resolvePlacement(at: Moment, slots: TimeSlot[], toPreviousDay: b
 	return { date: at.clone(), slot: current };
 }
 
+/** 1日の境界（0:00 からの分）。これより前の時刻は前日として扱う */
+export function dayBoundary(slots: TimeSlot[], toPreviousDay: boolean): number {
+	return toPreviousDay ? (slots[0]?.minutes ?? 0) : 0;
+}
+
+/** 境界を考慮した論理上の日付（その日の 0:00）を返す */
+export function logicalDate(at: Moment, boundary: number): Moment {
+	return at.clone().subtract(boundary, 'minutes').startOf('day');
+}
+
 interface HeadingLine {
 	index: number;
 	level: number;
