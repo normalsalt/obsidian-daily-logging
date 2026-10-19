@@ -1,4 +1,4 @@
-import { ItemView, Keymap, TFile, WorkspaceLeaf, setIcon } from 'obsidian';
+import { ItemView, Keymap, TFile, WorkspaceLeaf, debounce, setIcon } from 'obsidian';
 import type DailyLoggingPlugin from './main';
 import { getDailyNotes, isDailyNote } from './daily-notes';
 import {
@@ -28,6 +28,12 @@ export class TaskView extends ItemView {
 
 	/** 一覧を描く場所（上部のボタンは描き直さない） */
 	private listEl: HTMLElement | null = null;
+
+	/** 今表示しているタスクのパス（再描画が必要かの判定に使う） */
+	private shown = new Set<string>();
+
+	/** 今表示している論理上の日付 */
+	private shownDay = '';
 
 	constructor(leaf: WorkspaceLeaf, plugin: DailyLoggingPlugin) {
 		super(leaf);
@@ -62,7 +68,47 @@ export class TaskView extends ItemView {
 		this.registerDomEvent(refresh, 'click', () => this.render());
 
 		this.listEl = root.createDiv({ cls: 'daily-logging-list' });
+		this.registerAutoRefresh();
 		this.render();
+	}
+
+	/** 一覧を自動で描き直すためのイベントを登録する */
+	private registerAutoRefresh(): void {
+		const { metadataCache, vault } = this.app;
+		const requestRender = debounce(() => this.render(), 300, true);
+
+		// 表示中のタスク、または変更後にタスクになったファイルなら描き直す
+		this.registerEvent(
+			metadataCache.on('changed', (file, _data, cache) => {
+				const isTask = readTask(cache.frontmatter, this.plugin.taskPropNames()) !== null;
+				if (isTask || this.shown.has(file.path)) requestRender();
+			}),
+		);
+		this.registerEvent(
+			vault.on('delete', (file) => {
+				if (this.shown.has(file.path)) requestRender();
+			}),
+		);
+		this.registerEvent(
+			vault.on('rename', (_file, oldPath) => {
+				if (this.shown.has(oldPath)) requestRender();
+			}),
+		);
+
+		// 起動直後はプロパティがまだ読み込まれていないことがあるので、読み込みが終わったら1回描き直す
+		const resolved = metadataCache.on('resolved', () => {
+			metadataCache.offref(resolved);
+			this.render();
+		});
+		this.registerEvent(resolved);
+
+		// 論理上の日付が変わったら描き直す
+		this.registerInterval(
+			window.setInterval(() => {
+				const today = this.plugin.taskContext().today.format('YYYY-MM-DD');
+				if (today !== this.shownDay) this.render();
+			}, 60_000),
+		);
 	}
 
 	/** 今日表示するタスクを集める */
@@ -92,6 +138,8 @@ export class TaskView extends ItemView {
 		if (!root) return; // まだ開かれていない
 		const ctx = this.plugin.taskContext();
 		const entries = this.collect(ctx);
+		this.shown = new Set(entries.map((e) => e.file.path));
+		this.shownDay = ctx.today.format('YYYY-MM-DD');
 		root.empty();
 
 		if (entries.length === 0) {
