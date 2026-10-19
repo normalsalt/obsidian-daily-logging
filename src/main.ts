@@ -14,10 +14,16 @@ import {
 	parseTimeSlots,
 	resolvePlacement,
 } from './time-slots';
-import { TaskContext, TaskPropNames } from './task';
+import {
+	Moment,
+	PROP_DATE_FORMAT,
+	TaskContext,
+	TaskPropNames,
+	formatDuration,
+	readTask,
+	shouldClearScheduled,
+} from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
-
-type Moment = ReturnType<typeof moment>;
 
 export default class DailyLoggingPlugin extends Plugin {
 	settings!: DailyLoggingSettings;
@@ -77,6 +83,55 @@ export default class DailyLoggingPlugin extends Plugin {
 		});
 	}
 
+	/** タスクを開始する。開始日時を書き込み、デイリーノートに記録する */
+	async startTask(file: TFile): Promise<void> {
+		const now = moment();
+		const names = this.taskPropNames();
+		const updated = this.waitForMetadata(file); // 書き換えより前に待ち始める
+
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			fm[names.start] = now.format(PROP_DATE_FORMAT);
+		});
+		this.logEntry(file, now, ` ${this.taskLabels().start}`);
+		await updated;
+	}
+
+	/** タスクを終了する。終了日時を書き込み、今日以前の予定日時を空にして記録する */
+	async endTask(file: TFile): Promise<void> {
+		const now = moment();
+		const names = this.taskPropNames();
+		const ctx = this.taskContext();
+		const before: { start: Moment | null } = { start: null };
+		const updated = this.waitForMetadata(file);
+
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			const props = readTask(fm, names);
+			before.start = props?.start ?? null;
+			fm[names.end] = now.format(PROP_DATE_FORMAT);
+			if (props && shouldClearScheduled(props, ctx)) fm[names.scheduled] = null; // 値だけ空にする
+		});
+
+		const duration = before.start ? `（${formatDuration(before.start, now)}）` : '';
+		this.logEntry(file, now, ` ${this.taskLabels().end}${duration}`);
+		await updated;
+	}
+
+	/** そのファイルの metadataCache が更新されるのを待つ（一定時間で打ち切る） */
+	private waitForMetadata(file: TFile, timeout = 2000): Promise<void> {
+		return new Promise((resolve) => {
+			const cache = this.app.metadataCache;
+			const finish = () => {
+				cache.offref(ref);
+				window.clearTimeout(timer);
+				resolve();
+			};
+			const ref = cache.on('changed', (changed) => {
+				if (changed.path === file.path) finish();
+			});
+			const timer = window.setTimeout(finish, timeout);
+		});
+	}
+
 	/** 右サイドバーにタスク一覧を開く（すでにあれば表示する） */
 	async activateTaskView(): Promise<void> {
 		const { workspace } = this.app;
@@ -117,6 +172,16 @@ export default class DailyLoggingPlugin extends Plugin {
 			scheduled: pick(s.scheduledProp, d.scheduledProp),
 			start: pick(s.startProp, d.startProp),
 			end: pick(s.endProp, d.endProp),
+		};
+	}
+
+	/** 記録とボタンに使う「開始」「終了」の文字（空欄なら既定値） */
+	taskLabels(): { start: string; end: string } {
+		const s = this.settings;
+		const d = DEFAULT_SETTINGS;
+		return {
+			start: s.startLabel.trim() || d.startLabel,
+			end: s.endLabel.trim() || d.endLabel,
 		};
 	}
 

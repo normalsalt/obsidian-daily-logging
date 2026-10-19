@@ -1,7 +1,7 @@
 import { moment } from 'obsidian';
 import { TimeSlot, logicalDate, resolvePlacement } from './time-slots';
 
-type Moment = ReturnType<typeof moment>;
+export type Moment = ReturnType<typeof moment>;
 
 export interface TaskPropNames {
 	cycle: string;
@@ -140,4 +140,20 @@ export function compareTasks(
 		compareMoment(a.props.start, b.props.start) ||
 		a.name.localeCompare(b.name, 'ja')
 	);
+}
+
+/** 開始日時・終了日時に書き込む形式（分単位） */
+export const PROP_DATE_FORMAT = 'YYYY-MM-DDTHH:mm';
+
+/** 所要時間を「38分」「1時間5分」「2時間」の形にする */
+export function formatDuration(from: Moment, to: Moment): string {
+	// 記録する HH:mm どうしの差と一致するよう、分単位にそろえて計算する
+	const total = Math.max(
+		0,
+		to.clone().startOf('minute').diff(from.clone().startOf('minute'), 'minutes'),
+	);
+	const h = Math.floor(total / 60);
+	const m = total % 60;
+	if (h === 0) return `${m}分`;
+	return m === 0 ? `${h}時間` : `${h}時間${m}分`;
 }

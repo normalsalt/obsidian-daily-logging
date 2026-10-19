@@ -23,6 +23,7 @@
 
 .daily-logging-task-name {
 	flex: 1;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -31,6 +32,11 @@
 
 .daily-logging-task-meta {
 	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.daily-logging-task-button {
+	flex: none;
 	font-size: var(--font-ui-smaller);
 }
 

@@ -8,6 +8,7 @@ import {
 	TaskProps,
 	compareTasks,
 	groupOf,
+	isRunning,
 	isVisible,
 	readTask,
 	scheduledDay,
@@ -124,5 +125,22 @@ export class TaskView extends ItemView {
 		if (s?.hasTime && scheduledDay(s, ctx).isSame(ctx.today, 'day')) {
 			item.createSpan({ cls: 'daily-logging-task-meta', text: s.value.format('HH:mm') });
 		}
+
+		// 実行中なら「終了」、それ以外なら「開始」だけを表示する
+		const running = isRunning(entry.props);
+		const labels = this.plugin.taskLabels();
+		const button = item.createEl('button', {
+			cls: 'daily-logging-task-button',
+			text: running ? labels.end : labels.start,
+		});
+		button.addEventListener('click', () => {
+			button.disabled = true; // 二重に押されないようにする
+			const action = running
+				? this.plugin.endTask(entry.file)
+				: this.plugin.startTask(entry.file);
+			void action
+				.catch((err: unknown) => console.error('[Daily Logging]', err))
+				.finally(() => this.render());
+		});
 	}
 }
