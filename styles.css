@@ -1,8 +1,43 @@
-/*
+.daily-logging-tasks .daily-logging-group {
+	margin-bottom: var(--size-4-4);
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.daily-logging-tasks h4 {
+	margin: var(--size-4-2) 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
 
-If your plugin does not need CSS, delete this file.
+.daily-logging-tasks ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
 
-*/
+.daily-logging-task {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) 0;
+}
+
+.daily-logging-task-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.daily-logging-task-meta {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.daily-logging-empty {
+	color: var(--text-muted);
+}
+
+.daily-logging-list {
+	padding: 0 var(--size-4-2);
+}
