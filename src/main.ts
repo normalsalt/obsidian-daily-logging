@@ -1,4 +1,4 @@
-import { Plugin, TAbstractFile, TFile, moment } from 'obsidian';
+import { Plugin, TAbstractFile, TFile, debounce, moment } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyLoggingSettings,
@@ -36,6 +36,17 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 作成されたが、まだ開かれていないファイル（パス → 作成時刻） */
 	private pending = new Map<string, Moment>();
+
+	/** 開いているタスク一覧をすべて描き直す（設定の入力中は何度も呼ばれるので、まとめて行う） */
+	requestTaskViewRefresh = debounce(
+		() => {
+			for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TASKS)) {
+				if (leaf.view instanceof TaskView) leaf.view.render();
+			}
+		},
+		300,
+		true,
+	);
 
 	async onload() {
 		await this.loadSettings();

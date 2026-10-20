@@ -80,6 +80,13 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	/** 設定の変更を保存し、タスク一覧に反映する */
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+		await this.plugin.saveSettings();
+		this.plugin.requestTaskViewRefresh();
+	}
+
 	getSettingDefinitions(): SettingDefinitionItem<keyof DailyLoggingSettings>[] {
 		const d = DEFAULT_SETTINGS;
 		return [
