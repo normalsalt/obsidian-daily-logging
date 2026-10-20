@@ -20,6 +20,7 @@ import {
 	TaskContext,
 	TaskPropNames,
 	formatDuration,
+	isRunning,
 	readTask,
 	shouldClearScheduled,
 } from './task';
@@ -54,6 +55,28 @@ export default class DailyLoggingPlugin extends Plugin {
 		this.registerView(VIEW_TYPE_TASKS, (leaf) => new TaskView(leaf, this));
 		this.addRibbonIcon('list-checks', 'Open task list', () => {
 			void this.activateTaskView();
+		});
+		this.addCommand({
+			id: 'open-task-list',
+			name: 'Open task list',
+			callback: () => {
+				void this.activateTaskView();
+			},
+		});
+		this.addCommand({
+			id: 'start-task',
+			name: 'Start task',
+			checkCallback: (checking) => this.taskCommand(checking, false, (f) => this.startTask(f)),
+		});
+		this.addCommand({
+			id: 'end-task',
+			name: 'End task',
+			checkCallback: (checking) => this.taskCommand(checking, true, (f) => this.endTask(f)),
+		});
+		this.addCommand({
+			id: 'interrupt-task',
+			name: 'Interrupt task',
+			checkCallback: (checking) => this.taskCommand(checking, true, (f) => this.interruptTask(f)),
 		});
 
 		// Vault の読み込み時には、既存のすべてのファイルについて create が発生するため、
@@ -142,15 +165,28 @@ export default class DailyLoggingPlugin extends Plugin {
 		const names = this.taskPropNames();
 		const updated = this.waitForMetadata(file); // 書き換えより前に待ち始める
 
+		// フロントマターがなければ、processFrontMatter が作る
 		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			fm[names.start] = now.format(PROP_DATE_FORMAT);
+			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
+			if (names.end in fm) fm[names.end] = null;
 		});
 		this.logEntry(file, now, ` ${this.taskLabels().start}`);
 		await updated;
 	}
 
-	/** タスクを終了する。終了日時を書き込み、今日以前の予定日時を空にして記録する */
+	/** タスクを終了する。今日以前の予定日時は値だけ空にする */
 	async endTask(file: TFile): Promise<void> {
+		await this.finishTask(file, 'end');
+	}
+
+	/** タスクを中断する。再開の見込み時刻を予定日時に入れて、一覧に残す */
+	async interruptTask(file: TFile): Promise<void> {
+		await this.finishTask(file, 'interrupt');
+	}
+
+	/** 終了と中断の共通処理。終了日時を書き込み、所要時間付きで記録する */
+	private async finishTask(file: TFile, mode: 'end' | 'interrupt'): Promise<void> {
 		const now = moment();
 		const names = this.taskPropNames();
 		const ctx = this.taskContext();
@@ -161,12 +197,48 @@ export default class DailyLoggingPlugin extends Plugin {
 			const props = readTask(fm, names);
 			before.start = props?.start ?? null;
 			fm[names.end] = now.format(PROP_DATE_FORMAT);
-			if (props && shouldClearScheduled(props, ctx)) fm[names.scheduled] = null; // 値だけ空にする
+
+			if (mode === 'end') {
+				if (props && shouldClearScheduled(props, ctx)) fm[names.scheduled] = null; // 値だけ空にする
+			} else {
+				// 一定時間後に再開する見込みとして、予定日時を入れる（日付をまたいでもよい）
+				const resumeAt = now.clone().add(this.resumeMinutes(), 'minutes');
+				fm[names.scheduled] = resumeAt.format(PROP_DATE_FORMAT);
+			}
 		});
 
+		const labels = this.taskLabels();
+		const label = mode === 'end' ? labels.end : labels.interrupt;
 		const duration = before.start ? `（${formatDuration(before.start, now)}）` : '';
-		this.logEntry(file, now, ` ${this.taskLabels().end}${duration}`);
+		this.logEntry(file, now, ` ${label}${duration}`);
 		await updated;
+	}
+
+	/**
+	 * 開いているファイルが条件に合うときだけコマンドを実行する（checkCallback 用）。
+	 * Markdown で、デイリーノートでなく、実行中かどうかが needRunning と一致するとき。
+	 * プロパティがないファイルは「実行中でない」とみなすので、開始できる。
+	 */
+	private taskCommand(
+		checking: boolean,
+		needRunning: boolean,
+		run: (file: TFile) => Promise<void>,
+	): boolean {
+		const file = this.app.workspace.getActiveFile();
+		if (!file || file.extension !== 'md') return false;
+
+		const dn = getDailyNotes(this.app);
+		if (!dn || isDailyNote(file, dn)) return false; // デイリーノートが無効なら記録できない
+
+		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+		const props = readTask(fm, this.taskPropNames());
+		const running = props !== null && isRunning(props);
+		if (running !== needRunning) return false;
+
+		if (!checking) {
+			void run(file).catch((err: unknown) => console.error('[Daily Logging]', err));
+		}
+		return true;
 	}
 
 	/** そのファイルの metadataCache が更新されるのを待つ（一定時間で打ち切る） */
@@ -229,16 +301,24 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	/** 記録、ボタン、グループ名に使う文字（空欄なら既定値） */
-	taskLabels(): { start: string; end: string; running: string; other: string } {
+	taskLabels(): { start: string; end: string; interrupt: string; running: string; other: string } {
 		const s = this.settings;
 		const d = DEFAULT_SETTINGS;
 		const pick = (v: string, fallback: string) => v.trim() || fallback;
 		return {
 			start: pick(s.startLabel, d.startLabel),
 			end: pick(s.endLabel, d.endLabel),
+			interrupt: pick(s.interruptLabel, d.interruptLabel),
 			running: pick(s.runningGroupLabel, d.runningGroupLabel),
 			other: pick(s.otherGroupLabel, d.otherGroupLabel),
 		};
+	}
+
+	/** 中断から再開までの見込み（分）。不正な値なら既定値 */
+	resumeMinutes(): number {
+		const value = this.settings.resumeMinutes.trim();
+		const fallback = Number(DEFAULT_SETTINGS.resumeMinutes);
+		return /^\d+$/.test(value) ? Number(value) : fallback;
 	}
 
 	async loadSettings() {

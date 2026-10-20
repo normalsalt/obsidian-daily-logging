@@ -175,21 +175,30 @@ export class TaskView extends ItemView {
 			item.createSpan({ cls: 'daily-logging-task-meta', text: s.value.format('HH:mm') });
 		}
 
-		// 実行中なら「終了」、それ以外なら「開始」だけを表示する
-		const running = isRunning(entry.props);
+		// 実行中なら「中断」「終了」、それ以外なら「開始」を表示する
 		const labels = this.plugin.taskLabels();
-		const button = item.createEl('button', {
-			cls: 'daily-logging-task-button',
-			text: running ? labels.end : labels.start,
-		});
-		button.addEventListener('click', () => {
-			button.disabled = true; // 二重に押されないようにする
-			const action = running
-				? this.plugin.endTask(entry.file)
-				: this.plugin.startTask(entry.file);
-			void action
-				.catch((err: unknown) => console.error('[Daily Logging]', err))
-				.finally(() => this.render());
-		});
+		const file = entry.file;
+		const actions: { label: string; run: () => Promise<void> }[] = isRunning(entry.props)
+			? [
+					{ label: labels.interrupt, run: () => this.plugin.interruptTask(file) },
+					{ label: labels.end, run: () => this.plugin.endTask(file) },
+				]
+			: [{ label: labels.start, run: () => this.plugin.startTask(file) }];
+
+		const buttons: HTMLButtonElement[] = [];
+		for (const action of actions) {
+			const button = item.createEl('button', {
+				cls: 'daily-logging-task-button',
+				text: action.label,
+			});
+			buttons.push(button);
+			button.addEventListener('click', () => {
+				for (const b of buttons) b.disabled = true; // 二重に押されないようにする
+				void action
+					.run()
+					.catch((err: unknown) => console.error('[Daily Logging]', err))
+					.finally(() => this.render());
+			});
+		}
 	}
 }

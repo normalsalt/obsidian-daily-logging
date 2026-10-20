@@ -24,10 +24,13 @@ export interface DailyLoggingSettings {
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
 	weekdayValues: string;
+	/** 中断してから再開するまでの見込み（分） */
+	resumeMinutes: string;
 
 	/** デイリーノートの記録とボタンに使う言葉 */
 	startLabel: string;
 	endLabel: string;
+	interruptLabel: string;
 	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
@@ -53,9 +56,11 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	endProp: '終了日時',
 	everydayValue: '毎日',
 	weekdayValues: '月曜日, 火曜日, 水曜日, 木曜日, 金曜日, 土曜日, 日曜日',
+	resumeMinutes: '15',
 
 	startLabel: '開始',
 	endLabel: '終了',
+	interruptLabel: '中断',
 	runningGroupLabel: '実行中',
 	otherGroupLabel: 'その他',
 };
@@ -155,7 +160,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Scheduled property',
-						desc: 'Date or date & time property. Cleared when the task is finished.',
+						desc: 'Date & time property. Cleared when a task is finished, set to a later time when it is interrupted.',
 						control: { type: 'text', key: 'scheduledProp', placeholder: d.scheduledProp },
 					},
 					{
@@ -184,6 +189,17 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 								parseWeekdays(value) ? '' : 'Enter exactly 7 values, from Monday to Sunday.',
 						},
 					},
+					{
+						name: 'Resume after interruption',
+						desc: 'Minutes from an interruption to the scheduled time for resuming the task.',
+						control: {
+							type: 'text',
+							key: 'resumeMinutes',
+							placeholder: d.resumeMinutes,
+							validate: (value) =>
+								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
+						},
+					},
 				],
 			},
 			{
@@ -199,6 +215,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'End label',
 						desc: 'Word written after the link when a task is finished.',
 						control: { type: 'text', key: 'endLabel', placeholder: d.endLabel },
+					},
+					{
+						name: 'Interrupt label',
+						desc: 'Word written after the link when a task is interrupted.',
+						control: { type: 'text', key: 'interruptLabel', placeholder: d.interruptLabel },
 					},
 					{
 						name: 'Running group name',

@@ -77,6 +77,7 @@ export function scheduledDay(d: TaskDate, ctx: TaskContext): Moment {
 	return d.hasTime ? logicalDate(d.value, ctx.boundary) : d.value.clone().startOf('day');
 }
 
+/** 実行中か。開始時に終了日時を空にするので、終了日時が開始日時と同じ分なら終了済み */
 export function isRunning(t: TaskProps): boolean {
 	return t.start !== null && (t.end === null || t.end.isBefore(t.start));
 }
