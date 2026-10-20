@@ -25,11 +25,17 @@ import {
 } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 
+/** 作成から何ミリ秒以内に開かれたら記録するか */
+const OPEN_WINDOW_MS = 5000;
+
 export default class DailyLoggingPlugin extends Plugin {
 	settings!: DailyLoggingSettings;
 
 	/** 追記を1件ずつ順番に処理するためのキュー */
 	private queue: Promise<void> = Promise.resolve();
+
+	/** 作成されたが、まだ開かれていないファイル（パス → 作成時刻） */
+	private pending = new Map<string, Moment>();
 
 	async onload() {
 		await this.loadSettings();
@@ -42,17 +48,53 @@ export default class DailyLoggingPlugin extends Plugin {
 		// Vault の読み込み時には、既存のすべてのファイルについて create が発生するため、
 		// レイアウトの準備が終わってから登録する
 		this.app.workspace.onLayoutReady(() => {
+			const { vault, workspace } = this.app;
+			this.registerEvent(vault.on('create', (file) => this.handleCreate(file)));
+			this.registerEvent(workspace.on('file-open', (file) => this.handleOpen(file)));
 			this.registerEvent(
-				this.app.vault.on('create', (file) => this.handleCreate(file)),
+				vault.on('rename', (file, oldPath) => this.handleRename(file, oldPath)),
 			);
+			this.registerEvent(vault.on('delete', (file) => this.pending.delete(file.path)));
 		});
 	}
 
+	/** 作成されたファイルを控えておく。記録は開かれたときに行う */
 	private handleCreate(file: TAbstractFile): void {
 		if (!(file instanceof TFile)) return;
 		if (!parseExtensions(this.settings.extensions).has(file.extension.toLowerCase())) return;
 
-		this.logEntry(file, moment()); // 処理を待つ間に時刻がずれないよう、ここで記録する
+		this.prunePending();
+		this.pending.set(file.path, moment()); // 記録する時刻は作成時刻
+	}
+
+	/**
+	 * 作成から一定時間内にこの端末で開かれたファイルだけを記録する。
+	 * Git の pull などで入ってきたファイルは開かれないので、記録されない。
+	 */
+	private handleOpen(file: TFile | null): void {
+		if (!file) return;
+		const createdAt = this.pending.get(file.path);
+		if (!createdAt) return;
+		this.pending.delete(file.path);
+		if (moment().diff(createdAt) > OPEN_WINDOW_MS) return;
+
+		this.logEntry(file, createdAt);
+	}
+
+	/** 開かれる前に改名されたら、控えのパスも変える */
+	private handleRename(file: TAbstractFile, oldPath: string): void {
+		const createdAt = this.pending.get(oldPath);
+		if (!createdAt) return;
+		this.pending.delete(oldPath);
+		this.pending.set(file.path, createdAt);
+	}
+
+	/** 時間切れの控えを消す（pull で大量に作られた場合に溜まらないように） */
+	private prunePending(): void {
+		const now = moment();
+		for (const [path, at] of this.pending) {
+			if (now.diff(at) > OPEN_WINDOW_MS) this.pending.delete(path);
+		}
 	}
 
 	/** デイリーノートの、時刻に合う場所に1行記録する（キューで順番に処理） */
