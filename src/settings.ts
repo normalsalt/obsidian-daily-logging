@@ -27,6 +27,9 @@ export interface DailyLoggingSettings {
 	/** デイリーノートに記録する言葉 */
 	startLabel: string;
 	endLabel: string;
+
+	runningGroupLabel: string;
+	otherGroupLabel: string;
 }
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
@@ -51,6 +54,9 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	weekdayValues: '月曜日, 火曜日, 水曜日, 木曜日, 金曜日, 土曜日, 日曜日',
 	startLabel: '開始',
 	endLabel: '終了',
+
+	runningGroupLabel: '実行中',
+	otherGroupLabel: 'その他',
 };
 
 /** "md, .Canvas  pdf" → Set { 'md', 'canvas', 'pdf' } */
@@ -173,6 +179,22 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				name: 'End label',
 				desc: 'Word written after the link when a task is finished.',
 				control: { type: 'text', key: 'endLabel', placeholder: d.endLabel },
+			},
+			{
+				name: 'Running group name',
+				control: {
+					type: 'text',
+					key: 'runningGroupLabel',
+					placeholder: DEFAULT_SETTINGS.runningGroupLabel,
+				},
+			},
+			{
+				name: 'Other group name',
+				control: {
+					type: 'text',
+					key: 'otherGroupLabel',
+					placeholder: DEFAULT_SETTINGS.otherGroupLabel,
+				},
 			},
 		];
 	}

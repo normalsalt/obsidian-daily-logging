@@ -228,13 +228,16 @@ export default class DailyLoggingPlugin extends Plugin {
 		};
 	}
 
-	/** 記録とボタンに使う「開始」「終了」の文字（空欄なら既定値） */
-	taskLabels(): { start: string; end: string } {
+	/** 記録、ボタン、グループ名に使う文字（空欄なら既定値） */
+	taskLabels(): { start: string; end: string; running: string; other: string } {
 		const s = this.settings;
 		const d = DEFAULT_SETTINGS;
+		const pick = (v: string, fallback: string) => v.trim() || fallback;
 		return {
-			start: s.startLabel.trim() || d.startLabel,
-			end: s.endLabel.trim() || d.endLabel,
+			start: pick(s.startLabel, d.startLabel),
+			end: pick(s.endLabel, d.endLabel),
+			running: pick(s.runningGroupLabel, d.runningGroupLabel),
+			other: pick(s.otherGroupLabel, d.otherGroupLabel),
 		};
 	}
 

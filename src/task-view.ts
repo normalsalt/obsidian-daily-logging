@@ -128,9 +128,10 @@ export class TaskView extends ItemView {
 	}
 
 	private groupTitle(group: number, ctx: TaskContext): string {
-		if (group === GROUP_RUNNING) return '実行中';
-		if (group === GROUP_OTHER) return 'その他';
-		return ctx.slots[group]?.heading ?? 'その他';
+		const labels = this.plugin.taskLabels();
+		if (group === GROUP_RUNNING) return labels.running;
+		if (group === GROUP_OTHER) return labels.other;
+		return ctx.slots[group]?.heading ?? labels.other;
 	}
 
 	render(): void {
