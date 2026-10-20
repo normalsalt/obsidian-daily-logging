@@ -24,10 +24,11 @@ export interface DailyLoggingSettings {
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
 	weekdayValues: string;
-	/** デイリーノートに記録する言葉 */
+
+	/** デイリーノートの記録とボタンに使う言葉 */
 	startLabel: string;
 	endLabel: string;
-
+	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
 }
@@ -52,9 +53,9 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	endProp: '終了日時',
 	everydayValue: '毎日',
 	weekdayValues: '月曜日, 火曜日, 水曜日, 木曜日, 金曜日, 土曜日, 日曜日',
+
 	startLabel: '開始',
 	endLabel: '終了',
-
 	runningGroupLabel: '実行中',
 	otherGroupLabel: 'その他',
 };
@@ -95,106 +96,121 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 
 	getSettingDefinitions(): SettingDefinitionItem<keyof DailyLoggingSettings>[] {
 		const d = DEFAULT_SETTINGS;
+		const headingsOn = () => this.plugin.settings.useHeadings;
+
 		return [
+			// 全般（見出しなし）
 			{
 				name: 'File extensions',
 				desc: 'Comma-separated list of file extensions to log when a file is created, for example: md, canvas, base',
 				control: { type: 'text', key: 'extensions', placeholder: 'md' },
 			},
 			{
-				name: 'Group entries by time slot',
-				desc: 'Add each entry under the heading of its time slot.',
-				control: { type: 'toggle', key: 'useHeadings' },
+				type: 'group',
+				heading: 'Time slots',
+				items: [
+					{
+						name: 'Group entries by time slot',
+						desc: 'Add each entry under the heading of its time slot.',
+						control: { type: 'toggle', key: 'useHeadings' },
+					},
+					{
+						name: 'Add a horizontal rule under new headings',
+						desc: 'Insert "---" on the line after each heading this plugin creates.',
+						visible: headingsOn,
+						control: { type: 'toggle', key: 'headingRule' },
+					},
+					{
+						name: 'Log early entries to the previous day',
+						desc: 'Entries before the first time slot go under the last slot of the previous day.',
+						visible: headingsOn,
+						control: { type: 'toggle', key: 'logToPreviousDay' },
+					},
+					{
+						name: 'Time slots',
+						desc: 'One slot per line: time | heading | tag',
+						visible: headingsOn,
+						control: {
+							type: 'textarea',
+							key: 'timeSlots',
+							rows: 6,
+							validate: (value) => parseTimeSlots(value).errors.join(' '),
+						},
+					},
+				],
 			},
 			{
-				name: 'Add a horizontal rule under new headings',
-				desc: 'Insert "---" on the line after each heading this plugin creates.',
-				visible: () => this.plugin.settings.useHeadings,
-				control: { type: 'toggle', key: 'headingRule' },
+				type: 'group',
+				heading: 'Tasks',
+				items: [
+					{
+						name: 'Cycle property',
+						desc: 'List property that holds the days a task appears in the sidebar.',
+						control: { type: 'text', key: 'cycleProp', placeholder: d.cycleProp },
+					},
+					{
+						name: 'Section property',
+						desc: 'Text property that holds the tag of a time slot.',
+						control: { type: 'text', key: 'sectionProp', placeholder: d.sectionProp },
+					},
+					{
+						name: 'Scheduled property',
+						desc: 'Date or date & time property. Cleared when the task is finished.',
+						control: { type: 'text', key: 'scheduledProp', placeholder: d.scheduledProp },
+					},
+					{
+						name: 'Start property',
+						desc: 'Date & time property set when a task is started.',
+						control: { type: 'text', key: 'startProp', placeholder: d.startProp },
+					},
+					{
+						name: 'End property',
+						desc: 'Date & time property set when a task is finished.',
+						control: { type: 'text', key: 'endProp', placeholder: d.endProp },
+					},
+					{
+						name: 'Every day value',
+						desc: 'Cycle value that matches every day.',
+						control: { type: 'text', key: 'everydayValue', placeholder: d.everydayValue },
+					},
+					{
+						name: 'Weekday values',
+						desc: 'Comma-separated cycle values from Monday to Sunday.',
+						control: {
+							type: 'text',
+							key: 'weekdayValues',
+							placeholder: d.weekdayValues,
+							validate: (value) =>
+								parseWeekdays(value) ? '' : 'Enter exactly 7 values, from Monday to Sunday.',
+						},
+					},
+				],
 			},
 			{
-				name: 'Log early entries to the previous day',
-				desc: 'Entries before the first time slot go under the last slot of the previous day.',
-				visible: () => this.plugin.settings.useHeadings,
-				control: { type: 'toggle', key: 'logToPreviousDay' },
-			},
-			{
-				name: 'Time slots',
-				desc: 'One slot per line: time | heading | tag',
-				visible: () => this.plugin.settings.useHeadings,
-				control: {
-					type: 'textarea',
-					key: 'timeSlots',
-					rows: 6,
-					validate: (value) => parseTimeSlots(value).errors.join(' '),
-				},
-			},
-			{
-				name: 'Cycle property',
-				desc: 'List property that holds the days a task appears in the sidebar.',
-				control: { type: 'text', key: 'cycleProp', placeholder: d.cycleProp },
-			},
-			{
-				name: 'Section property',
-				desc: 'Text property that holds the tag of a time slot.',
-				control: { type: 'text', key: 'sectionProp', placeholder: d.sectionProp },
-			},
-			{
-				name: 'Scheduled property',
-				desc: 'Date or date & time property. Cleared when the task is finished.',
-				control: { type: 'text', key: 'scheduledProp', placeholder: d.scheduledProp },
-			},
-			{
-				name: 'Start property',
-				desc: 'Date & time property set when a task is started.',
-				control: { type: 'text', key: 'startProp', placeholder: d.startProp },
-			},
-			{
-				name: 'End property',
-				desc: 'Date & time property set when a task is finished.',
-				control: { type: 'text', key: 'endProp', placeholder: d.endProp },
-			},
-			{
-				name: 'Every day value',
-				desc: 'Cycle value that matches every day.',
-				control: { type: 'text', key: 'everydayValue', placeholder: d.everydayValue },
-			},
-			{
-				name: 'Weekday values',
-				desc: 'Comma-separated cycle values from Monday to Sunday.',
-				control: {
-					type: 'text',
-					key: 'weekdayValues',
-					placeholder: d.weekdayValues,
-					validate: (value) =>
-						parseWeekdays(value) ? '' : 'Enter exactly 7 values, from Monday to Sunday.',
-				},
-			},
-			{
-				name: 'Start label',
-				desc: 'Word written after the link when a task is started.',
-				control: { type: 'text', key: 'startLabel', placeholder: d.startLabel },
-			},
-			{
-				name: 'End label',
-				desc: 'Word written after the link when a task is finished.',
-				control: { type: 'text', key: 'endLabel', placeholder: d.endLabel },
-			},
-			{
-				name: 'Running group name',
-				control: {
-					type: 'text',
-					key: 'runningGroupLabel',
-					placeholder: DEFAULT_SETTINGS.runningGroupLabel,
-				},
-			},
-			{
-				name: 'Other group name',
-				control: {
-					type: 'text',
-					key: 'otherGroupLabel',
-					placeholder: DEFAULT_SETTINGS.otherGroupLabel,
-				},
+				type: 'group',
+				heading: 'Labels',
+				items: [
+					{
+						name: 'Start label',
+						desc: 'Word written after the link when a task is started.',
+						control: { type: 'text', key: 'startLabel', placeholder: d.startLabel },
+					},
+					{
+						name: 'End label',
+						desc: 'Word written after the link when a task is finished.',
+						control: { type: 'text', key: 'endLabel', placeholder: d.endLabel },
+					},
+					{
+						name: 'Running group name',
+						desc: 'Group name for running tasks in the task list.',
+						control: { type: 'text', key: 'runningGroupLabel', placeholder: d.runningGroupLabel },
+					},
+					{
+						name: 'Other group name',
+						desc: 'Group name for tasks that match no time slot.',
+						control: { type: 'text', key: 'otherGroupLabel', placeholder: d.otherGroupLabel },
+					},
+				],
 			},
 		];
 	}
