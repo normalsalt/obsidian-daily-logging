@@ -155,6 +155,6 @@ export function formatDuration(from: Moment, to: Moment): string {
 	);
 	const h = Math.floor(total / 60);
 	const m = total % 60;
-	if (h === 0) return `${m}分`;
-	return m === 0 ? `${h}時間` : `${h}時間${m}分`;
+	if (h === 0) return `${m} min`;
+	return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }

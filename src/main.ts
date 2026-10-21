@@ -209,7 +209,7 @@ export default class DailyLoggingPlugin extends Plugin {
 
 		const labels = this.taskLabels();
 		const label = mode === 'end' ? labels.end : labels.interrupt;
-		const duration = before.start ? `（${formatDuration(before.start, now)}）` : '';
+		const duration = before.start ? ` (${formatDuration(before.start, now)})` : '';
 		this.logEntry(file, now, ` ${label}${duration}`);
 		await updated;
 	}
