@@ -1,92 +1,78 @@
-# Obsidian Sample Plugin
+# Daily Logging
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Log what you work on to your daily note without thinking about it.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+When you create a note, Daily Logging appends the time and a link to today's daily note. A task list in the sidebar shows today's recurring and scheduled tasks, and lets you log when you start, interrupt, and end each one.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+```markdown
+## Morning routine
+---
+- 06:12 [[Stretching]] started
+- 06:30 [[Stretching]] ended (18 min)
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
-
-## First time developing plugins?
-
-Quick starting guide for new plugin devs:
-
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
-
-## Releasing new releases
-
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
+## Main work
+---
+- 13:05 [[Fix login bug]]
+- 13:40 [[Weekly report]] started
+- 14:10 [[Weekly report]] interrupted (30 min)
 ```
 
-If you have multiple URLs, you can also do:
+## Requirements
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
-```
+- Obsidian 1.13.0 or later
+- The **Daily notes** core plugin must be enabled. Daily Logging uses its folder, date format, and template. If today's daily note doesn't exist yet, it is created.
 
-## API Documentation
+## Logging new files
 
-See https://docs.obsidian.md
+A line is added when you create a file and open it within a few seconds on the same device. Files added by Git pull or by other tools aren't logged, because they are never opened. Daily notes themselves are never logged.
+
+- **File extensions**: Only files with these extensions are logged (default: `md`).
+- **Time slots**: Each entry is added under the heading of its time slot. If the heading doesn't exist yet, it is created. Each slot is written on one line as `time | heading | tag`.
+- **Early entries**: Entries before the first time slot go to the previous day's daily note, under the last slot. In the task list, this time is also used as the start of the day.
+
+## Task list
+
+Open the list from the ribbon or with the **Open task list** command. Any Markdown file with one of the following properties is treated as a task. You can change the property names in the settings.
+
+| Property    | Type        | Meaning                                                        |
+| ----------- | ----------- | -------------------------------------------------------------- |
+| `repeat`    | List        | Days the task appears: `Every day`, or weekdays such as `Monday` |
+| `section`   | Text        | Tag of the time slot to group the task under                   |
+| `scheduled` | Date & time | Show the task on this day                                      |
+| `started`   | Date & time | Set by the plugin when you start the task                      |
+| `ended`     | Date & time | Set by the plugin when you end or interrupt the task           |
+
+A task is shown when one of the following applies:
+
+- It is running.
+- It is scheduled for today.
+- It repeats today and hasn't been ended today.
+
+A task scheduled for a later day is hidden until that day, even if it repeats today.
+
+| Action    | What it does                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------- |
+| Start     | Sets `started` and logs it. Works on any Markdown file, even one without properties.               |
+| End       | Sets `ended` and logs it with the time spent. Clears `scheduled` if it is today or earlier.        |
+| Interrupt | Sets `ended` and logs it with the time spent. Sets `scheduled` to 15 minutes later, so the task stays in the list. |
+
+The **Start task**, **End task**, and **Interrupt task** commands work on the file that is currently open. You can assign hotkeys to them.
+
+## Notes
+
+- Daily Logging reads the settings of the Daily notes core plugin through an internal, undocumented API. A future Obsidian update may break it. If that happens, nothing is logged and an error appears in the developer console.
+- If you sync with Git and log on more than one device, the same daily note may be edited on each device. Pull before you start working, and commit often to avoid merge conflicts.
+
+## Installation
+
+Daily Logging is not yet available in Community plugins. You can install it with [BRAT](https://github.com/TfTHacker/obsidian42-brat):
+
+1. Install and enable **BRAT** from Community plugins.
+2. In BRAT's settings, choose **Add beta plugin** and enter `normalsalt/obsidian-daily-logging`.
+3. Enable **Daily Logging** in **Settings → Community plugins**.
+
+BRAT keeps the plugin up to date with new releases.
+
+## License
+
+[MIT](LICENSE)
