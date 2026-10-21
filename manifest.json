@@ -3,7 +3,7 @@
 	"name": "Daily Logging",
 	"version": "0.1.0",
 	"minAppVersion": "1.13.0",
-	"description": "Automatically log the time and a link to each file you create or modify in your daily note.",
+	"description": "Log new files and the start, interruption, and end of tasks to your daily note, with the time and a link.",
 	"author": "normalsalt",
 	"authorUrl": "https://github.com/normalsalt",
 	"isDesktopOnly": false
