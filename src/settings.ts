@@ -20,7 +20,7 @@ export interface DailyLoggingSettings {
 	scheduledProp: string;
 	startProp: string;
 	endProp: string;
-	/** 周期の値の表記 */
+	/** repeat の値の表記 */
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
 	weekdayValues: string;
@@ -149,7 +149,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				heading: 'Tasks',
 				items: [
 					{
-						name: 'Cycle property',
+						name: 'Repeat property',
 						desc: 'List property that holds the days a task appears in the sidebar.',
 						control: { type: 'text', key: 'cycleProp', placeholder: d.cycleProp },
 					},
@@ -175,12 +175,12 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Every day value',
-						desc: 'Cycle value that matches every day.',
+						desc: 'Repeat value that matches every day.',
 						control: { type: 'text', key: 'everydayValue', placeholder: d.everydayValue },
 					},
 					{
 						name: 'Weekday values',
-						desc: 'Comma-separated cycle values from Monday to Sunday.',
+						desc: 'Comma-separated repeat values from Monday to Sunday.',
 						control: {
 							type: 'text',
 							key: 'weekdayValues',

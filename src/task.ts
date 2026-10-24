@@ -139,14 +139,14 @@ export function compareTasks(
 	return (
 		compareMoment(a.props.scheduled?.value ?? null, b.props.scheduled?.value ?? null) ||
 		compareMoment(a.props.start, b.props.start) ||
-		a.name.localeCompare(b.name, 'ja')
+		a.name.localeCompare(b.name)
 	);
 }
 
 /** 開始日時・終了日時に書き込む形式（分単位） */
 export const PROP_DATE_FORMAT = 'YYYY-MM-DDTHH:mm';
 
-/** 所要時間を「38分」「1時間5分」「2時間」の形にする */
+/** 所要時間を「00:38」「01:05」の形にする。24時間を超えても繰り上げない（例：25:10） */
 export function formatDuration(from: Moment, to: Moment): string {
 	// 記録する HH:mm どうしの差と一致するよう、分単位にそろえて計算する
 	const total = Math.max(
@@ -155,6 +155,6 @@ export function formatDuration(from: Moment, to: Moment): string {
 	);
 	const h = Math.floor(total / 60);
 	const m = total % 60;
-	if (h === 0) return `${m} min`;
-	return m === 0 ? `${h} h` : `${h} h ${m} min`;
+	const pad = (n: number) => String(n).padStart(2, '0');
+	return `${pad(h)}:${pad(m)}`;
 }
