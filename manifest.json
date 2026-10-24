@@ -1,7 +1,7 @@
 {
 	"id": "daily-logging",
 	"name": "Daily Logging",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"minAppVersion": "1.13.0",
 	"description": "Log new files and the start, interruption, and end of tasks to your daily note, with the time and a link.",
 	"author": "normalsalt",

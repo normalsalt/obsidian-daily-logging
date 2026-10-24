@@ -1,6 +1,6 @@
 {
 	"name": "daily-logging",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Log new files and the start, interruption, and end of tasks to your daily note, with the time and a link.",
 	"main": "main.js",
 	"type": "module",
