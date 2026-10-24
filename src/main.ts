@@ -1,4 +1,4 @@
-import { Plugin, TAbstractFile, TFile, debounce, moment } from 'obsidian';
+import { Notice, Plugin, TAbstractFile, TFile, debounce, moment } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyLoggingSettings,
@@ -6,7 +6,13 @@ import {
 	parseExtensions,
 	parseWeekdays,
 } from './settings';
-import { appendLine, getDailyNotes, isDailyNote, updateDailyNote } from './daily-notes';
+import {
+	NO_DAILY_NOTES_MESSAGE,
+	appendLine,
+	getDailyNotes,
+	isDailyNote,
+	updateDailyNote,
+} from './daily-notes';
 import {
 	dayBoundary,
 	insertUnderHeading,
@@ -37,6 +43,9 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 作成されたが、まだ開かれていないファイル（パス → 作成時刻） */
 	private pending = new Map<string, Moment>();
+
+	/** 新規ファイルの記録で、デイリーノートが使えないことをすでに知らせたか */
+	private warnedNoDailyNotes = false;
 
 	/** 開いているタスク一覧をすべて描き直す（設定の入力中は何度も呼ばれるので、まとめて行う） */
 	requestTaskViewRefresh = debounce(
@@ -135,7 +144,12 @@ export default class DailyLoggingPlugin extends Plugin {
 	private logEntry(file: TFile, at: Moment, suffix = ''): void {
 		this.enqueue(async () => {
 			const dn = getDailyNotes(this.app);
-			if (!dn) return; // デイリーノートが無効
+			if (!dn) {
+				if (!this.warnedNoDailyNotes) new Notice(NO_DAILY_NOTES_MESSAGE);
+				this.warnedNoDailyNotes = true;
+				return;
+			}
+			this.warnedNoDailyNotes = false; // 使えるようになったら、次に使えなくなったときにまた知らせる
 			if (isDailyNote(file, dn)) return; // デイリーノート自身は対象外
 			if (!this.app.vault.getFileByPath(file.path)) return; // 処理を待つ間に削除された
 
@@ -161,6 +175,8 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** タスクを開始する。開始日時を書き込み、デイリーノートに記録する */
 	async startTask(file: TFile): Promise<void> {
+		if (!this.ensureDailyNotes()) return;
+
 		const now = moment();
 		const names = this.taskPropNames();
 		const updated = this.waitForMetadata(file); // 書き換えより前に待ち始める
@@ -187,6 +203,8 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 終了と中断の共通処理。終了日時を書き込み、所要時間付きで記録する */
 	private async finishTask(file: TFile, mode: 'end' | 'interrupt'): Promise<void> {
+		if (!this.ensureDailyNotes()) return;
+
 		const now = moment();
 		const names = this.taskPropNames();
 		const ctx = this.taskContext();
@@ -227,8 +245,9 @@ export default class DailyLoggingPlugin extends Plugin {
 		const file = this.app.workspace.getActiveFile();
 		if (!file || file.extension !== 'md') return false;
 
+		// 無効でもコマンドは出し、実行時に startTask などが知らせる
 		const dn = getDailyNotes(this.app);
-		if (!dn || isDailyNote(file, dn)) return false; // デイリーノートが無効なら記録できない
+		if (dn && isDailyNote(file, dn)) return false;
 
 		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const props = readTask(fm, this.taskPropNames());
@@ -239,6 +258,13 @@ export default class DailyLoggingPlugin extends Plugin {
 			void run(file).catch((err: unknown) => console.error('[Daily Logging]', err));
 		}
 		return true;
+	}
+
+	/** Daily notes が使えるか確かめ、使えなければ知らせる（ボタンやコマンドから操作したとき用） */
+	private ensureDailyNotes(): boolean {
+		if (getDailyNotes(this.app)) return true;
+		new Notice(NO_DAILY_NOTES_MESSAGE);
+		return false;
 	}
 
 	/** そのファイルの metadataCache が更新されるのを待つ（一定時間で打ち切る） */

@@ -47,3 +47,8 @@
 .daily-logging-list {
 	padding: 0 var(--size-4-2);
 }
+
+.daily-logging-warning {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+}

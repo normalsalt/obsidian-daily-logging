@@ -1,6 +1,6 @@
 import { ItemView, Keymap, TFile, WorkspaceLeaf, debounce, setIcon } from 'obsidian';
 import type DailyLoggingPlugin from './main';
-import { getDailyNotes, isDailyNote } from './daily-notes';
+import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote } from './daily-notes';
 import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
@@ -34,6 +34,9 @@ export class TaskView extends ItemView {
 
 	/** 今表示している論理上の日付 */
 	private shownDay = '';
+
+	/** 表示したときにデイリーノートが使えたか */
+	private shownAvailable = true;
 
 	constructor(leaf: WorkspaceLeaf, plugin: DailyLoggingPlugin) {
 		super(leaf);
@@ -102,11 +105,12 @@ export class TaskView extends ItemView {
 		});
 		this.registerEvent(resolved);
 
-		// 論理上の日付が変わったら描き直す
+		// 論理上の日付が変わったとき、Daily notes が使えるかどうかが変わったときに描き直す
 		this.registerInterval(
 			window.setInterval(() => {
 				const today = this.plugin.taskContext().today.format('YYYY-MM-DD');
-				if (today !== this.shownDay) this.render();
+				const available = getDailyNotes(this.app) !== null;
+				if (today !== this.shownDay || available !== this.shownAvailable) this.render();
 			}, 60_000),
 		);
 	}
@@ -141,7 +145,12 @@ export class TaskView extends ItemView {
 		const entries = this.collect(ctx);
 		this.shown = new Set(entries.map((e) => e.file.path));
 		this.shownDay = ctx.today.format('YYYY-MM-DD');
+		this.shownAvailable = getDailyNotes(this.app) !== null;
 		root.empty();
+
+		if (!this.shownAvailable) {
+			root.createEl('p', { cls: 'daily-logging-warning', text: NO_DAILY_NOTES_MESSAGE });
+		}
 
 		if (entries.length === 0) {
 			root.createEl('p', { cls: 'daily-logging-empty', text: 'No tasks for today.' });

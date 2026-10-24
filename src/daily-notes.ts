@@ -100,3 +100,7 @@ export function appendLine(data: string, line: string): string {
 	const sep = data === '' || data.endsWith('\n') ? '' : '\n';
 	return `${data}${sep}${line}\n`;
 }
+
+/** Daily notes コアプラグインが使えないときのメッセージ（無効なときと、非公開 API が変わったときの両方） */
+export const NO_DAILY_NOTES_MESSAGE =
+	"Daily Logging couldn't use the Daily notes core plugin. Make sure it is enabled.";
