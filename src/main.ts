@@ -11,6 +11,7 @@ import {
 	appendLine,
 	getDailyNotes,
 	isDailyNote,
+	reportError,
 	updateDailyNote,
 } from './daily-notes';
 import {
@@ -168,9 +169,7 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	private enqueue(task: () => Promise<void>): void {
-		this.queue = this.queue.then(task).catch((err: unknown) => {
-			console.error('[Daily Logging]', err);
-		});
+		this.queue = this.queue.then(task).catch(reportError);
 	}
 
 	/** タスクを開始する。開始日時を書き込み、デイリーノートに記録する */
@@ -255,7 +254,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (running !== needRunning) return false;
 
 		if (!checking) {
-			void run(file).catch((err: unknown) => console.error('[Daily Logging]', err));
+			void run(file).catch(reportError);
 		}
 		return true;
 	}

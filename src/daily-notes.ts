@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, moment, normalizePath } from 'obsidian';
+import { App, Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
 
 type Moment = ReturnType<typeof moment>;
 
@@ -104,3 +104,10 @@ export function appendLine(data: string, line: string): string {
 /** Daily notes コアプラグインが使えないときのメッセージ（無効なときと、非公開 API が変わったときの両方） */
 export const NO_DAILY_NOTES_MESSAGE =
 	"Daily Logging couldn't use the Daily notes core plugin. Make sure it is enabled.";
+
+/** エラーを通知し、詳細は開発者コンソールに出す */
+export function reportError(err: unknown): void {
+	console.error('[Daily Logging]', err);
+	const detail = err instanceof Error ? err.message : String(err);
+	new Notice(`Daily Logging: ${detail} See the developer console for details.`);
+}

@@ -1,6 +1,6 @@
 import { ItemView, Keymap, TFile, WorkspaceLeaf, debounce, setIcon } from 'obsidian';
 import type DailyLoggingPlugin from './main';
-import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote } from './daily-notes';
+import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
 import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
@@ -205,7 +205,7 @@ export class TaskView extends ItemView {
 				for (const b of buttons) b.disabled = true; // 二重に押されないようにする
 				void action
 					.run()
-					.catch((err: unknown) => console.error('[Daily Logging]', err))
+					.catch(reportError)
 					.finally(() => this.render());
 			});
 		}
