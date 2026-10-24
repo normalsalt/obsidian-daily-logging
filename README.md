@@ -60,7 +60,8 @@ The **Start task**, **End task**, and **Interrupt task** commands work on the fi
 
 ## Notes
 
-- Daily Logging reads the settings of the Daily notes core plugin through an internal, undocumented API. A future Obsidian update may break it. If that happens, nothing is logged and an error appears in the developer console.
+- Daily Logging reads the settings of the Daily notes core plugin through an internal, undocumented API. A future Obsidian update may break it. If that happens, or if the Daily notes core plugin is disabled, Daily Logging shows a notice and a warning in the task list, and nothing is logged until it can use the plugin again.
+- Other errors are also shown in a notice. Details appear in the developer console.
 - If you sync with Git and log on more than one device, the same daily note may be edited on each device. Pull before you start working, and commit often to avoid merge conflicts.
 
 ## Installation
