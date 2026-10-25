@@ -1,5 +1,6 @@
 import { Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
 import type { App } from 'obsidian';
+import type { Inserted } from './time-slots';
 
 type Moment = ReturnType<typeof moment>;
 
@@ -88,24 +89,40 @@ export function isDailyNote(file: TFile, dn: DailyNotesInstance): boolean {
 	return moment(rel, formatOf(dn), true).isValid();
 }
 
-/** 指定日のデイリーノートを取得（なければテンプレート付きで作成）し、内容を書き換える */
+/** デイリーノートに追記した場所 */
+export interface LoggedLine {
+	file: TFile;
+	line: number; // 0から
+	text: string; // 追記した行の内容
+}
+
+/** 指定日のデイリーノートを取得（なければテンプレート付きで作成）し、1行追記する */
 export async function updateDailyNote(
 	app: App,
 	dn: DailyNotesInstance,
 	date: Moment,
-	update: (data: string, dailyNote: TFile) => string,
-): Promise<void> {
+	update: (data: string, dailyNote: TFile) => Inserted,
+): Promise<LoggedLine> {
 	const dailyNote = await dn.getDailyNote(date);
 	if (!(dailyNote instanceof TFile)) {
 		throw new Error('Could not get the daily note.');
 	}
-	await app.vault.process(dailyNote, (data) => update(data, dailyNote));
+	let line = 0;
+	let text = '';
+	await app.vault.process(dailyNote, (data) => {
+		const inserted = update(data, dailyNote);
+		line = inserted.line;
+		text = inserted.data.split('\n')[line] ?? '';
+		return inserted.data;
+	});
+	return { file: dailyNote, line, text };
 }
 
 /** 末尾に1行追記する */
-export function appendLine(data: string, line: string): string {
+export function appendLine(data: string, line: string): Inserted {
 	const sep = data === '' || data.endsWith('\n') ? '' : '\n';
-	return `${data}${sep}${line}\n`;
+	const before = `${data}${sep}`;
+	return { data: `${before}${line}\n`, line: before.split('\n').length - 1 };
 }
 
 /** Daily notes コアプラグインが使えないときのメッセージ（無効なときと、非公開 API が変わったときの両方） */

@@ -1,5 +1,5 @@
-import { Notice, Plugin, TFile, debounce, moment } from 'obsidian';
-import type { TAbstractFile } from 'obsidian';
+import { MarkdownView, Notice, Plugin, TFile, debounce, moment } from 'obsidian';
+import type { Editor, TAbstractFile } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyLoggingSettingTab,
@@ -15,6 +15,7 @@ import {
 	reportError,
 	updateDailyNote,
 } from './daily-notes';
+import type { LoggedLine } from './daily-notes';
 import {
 	dayBoundary,
 	insertUnderHeading,
@@ -120,7 +121,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		this.pending.delete(file.path);
 		if (moment().diff(createdAt) > OPEN_WINDOW_MS) return;
 
-		this.logEntry(file, createdAt);
+		void this.logEntry(file, createdAt);
 	}
 
 	/** 開かれる前に改名されたら、控えのパスも変える */
@@ -139,24 +140,27 @@ export default class DailyLoggingPlugin extends Plugin {
 		}
 	}
 
-	/** デイリーノートの、時刻に合う場所に1行記録する（キューで順番に処理） */
-	private logEntry(file: TFile, at: Moment, suffix = ''): void {
-		this.enqueue(async () => {
+	/**
+	 * デイリーノートの、時刻に合う場所に1行記録する（キューで順番に処理）。
+	 * 追記した場所を返す。記録しなかったとき、失敗したときは null
+	 */
+	private logEntry(file: TFile, at: Moment, suffix = ''): Promise<LoggedLine | null> {
+		return this.enqueue(async () => {
 			const dn = getDailyNotes(this.app);
 			if (!dn) {
 				if (!this.warnedNoDailyNotes) new Notice(NO_DAILY_NOTES_MESSAGE);
 				this.warnedNoDailyNotes = true;
-				return;
+				return null;
 			}
 			this.warnedNoDailyNotes = false; // 使えるようになったら、次に使えなくなったときにまた知らせる
-			if (isDailyNote(file, dn)) return; // デイリーノート自身は対象外
-			if (!this.app.vault.getFileByPath(file.path)) return; // 処理を待つ間に削除された
+			if (isDailyNote(file, dn)) return null; // デイリーノート自身は対象外
+			if (!this.app.vault.getFileByPath(file.path)) return null; // 処理を待つ間に削除された
 
 			const { useHeadings, headingRule, logToPreviousDay, timeSlots } = this.settings;
 			const slots = useHeadings ? parseTimeSlots(timeSlots).slots : [];
 			const { date, slot } = resolvePlacement(at, slots, logToPreviousDay);
 
-			await updateDailyNote(this.app, dn, date, (data, dailyNote) => {
+			return updateDailyNote(this.app, dn, date, (data, dailyNote) => {
 				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
 				const line = `- ${at.format('HH:mm')} ${link}${suffix}`;
 				return slot
@@ -166,8 +170,11 @@ export default class DailyLoggingPlugin extends Plugin {
 		});
 	}
 
-	private enqueue(task: () => Promise<void>): void {
-		this.queue = this.queue.then(task).catch(reportError);
+	/** 処理をキューに入れ、その結果を返す。失敗したら知らせて null を返し、キューは止めない */
+	private enqueue<T>(task: () => Promise<T>): Promise<T | null> {
+		const result = this.queue.then(task);
+		this.queue = result.then(() => undefined, reportError);
+		return result.catch(() => null); // 知らせるのは上の1回だけ
 	}
 
 	/** タスクを開始する。開始日時を書き込み、デイリーノートに記録する */
@@ -184,8 +191,9 @@ export default class DailyLoggingPlugin extends Plugin {
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
 		});
-		this.logEntry(file, now, ` ${this.taskLabels().start}`);
+		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`);
 		await updated;
+		await this.showLoggedLine(await logged);
 	}
 
 	/** タスクを終了する。予定日時は値だけ空にする */
@@ -224,8 +232,47 @@ export default class DailyLoggingPlugin extends Plugin {
 		const labels = this.taskLabels();
 		const label = mode === 'end' ? labels.end : labels.interrupt;
 		const duration = before.start ? ` (${formatDuration(before.start, now)})` : '';
-		this.logEntry(file, now, ` ${label}${duration}`);
+		const logged = this.logEntry(file, now, ` ${label}${duration}`);
 		await updated;
+		await this.showLoggedLine(await logged);
+	}
+
+	/** 設定がオンなら、デイリーノートを前に出し（開いていなければ新しいタブで開く）、追記した行の末尾にカーソルを置く */
+	private async showLoggedLine(logged: LoggedLine | null): Promise<void> {
+		if (!logged || !this.settings.openDailyNote) return;
+		const { workspace } = this.app;
+
+		let leaf = workspace
+			.getLeavesOfType('markdown')
+			.find((l) => l.view instanceof MarkdownView && l.view.file?.path === logged.file.path);
+		if (!leaf) {
+			leaf = workspace.getLeaf('tab');
+			await leaf.openFile(logged.file);
+		}
+		workspace.setActiveLeaf(leaf, { focus: true });
+		await workspace.revealLeaf(leaf);
+
+		// 閲覧モードではカーソルは見えないが、タブを前に出すところまでは行う
+		if (!(leaf.view instanceof MarkdownView)) return;
+		const editor = leaf.view.editor;
+		if (!(await this.waitForLine(editor, logged))) return;
+		const pos = { line: logged.line, ch: logged.text.length };
+		editor.setCursor(pos);
+		editor.scrollIntoView({ from: pos, to: pos }, true);
+		editor.focus();
+	}
+
+	/**
+	 * エディターに追記した行が入るまで待つ（一定時間で打ち切り、false を返す）。
+	 * 開いたままのデイリーノートを書き換えると、エディターへの反映が少し遅れるため
+	 */
+	private async waitForLine(editor: Editor, logged: LoggedLine, timeout = 1000): Promise<boolean> {
+		const start = Date.now();
+		while (editor.lineCount() <= logged.line || editor.getLine(logged.line) !== logged.text) {
+			if (Date.now() - start > timeout) return false;
+			await sleep(50);
+		}
+		return true;
 	}
 
 	/**

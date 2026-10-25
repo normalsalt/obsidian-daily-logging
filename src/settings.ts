@@ -27,6 +27,8 @@ export interface DailyLoggingSettings {
 	weekdayValues: string;
 	/** 中断してから再開するまでの見込み（分） */
 	resumeMinutes: string;
+	/** タスクを記録したら、デイリーノートの追記した行を表示する */
+	openDailyNote: boolean;
 
 	/** デイリーノートの記録とボタンに使う言葉 */
 	startLabel: string;
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	everydayValue: 'Every day',
 	weekdayValues: 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
 	resumeMinutes: '15',
+	openDailyNote: true,
 
 	startLabel: 'started',
 	endLabel: 'ended',
@@ -200,6 +203,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 							validate: (value) =>
 								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
 						},
+					},
+					{
+						name: 'Show the logged line',
+						desc: 'After you start, interrupt, or end a task, open the daily note and move the cursor to the new line.',
+						control: { type: 'toggle', key: 'openDailyNote' },
 					},
 				],
 			},

@@ -58,6 +58,8 @@ A task scheduled for a later day is hidden until that day, even if it repeats to
 
 The **Start task**, **End task**, and **Interrupt task** commands work on the file that is currently open. You can assign hotkeys to them.
 
+After you start, interrupt, or end a task, the daily note opens in a new tab, with the cursor on the new line. If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings.
+
 ## Notes
 
 - Daily Logging reads the settings of the Daily notes core plugin through an internal, undocumented API. A future Obsidian update may break it. If that happens, or if the Daily notes core plugin is disabled, Daily Logging shows a notice and a warning in the task list, and nothing is logged until it can use the plugin again.

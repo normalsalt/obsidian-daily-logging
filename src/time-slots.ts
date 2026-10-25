@@ -13,6 +13,11 @@ export interface Placement {
 	slot: TimeSlot | null; // 追記先の見出し（見出しなしなら null）
 }
 
+export interface Inserted {
+	data: string; // 追記後の内容
+	line: number; // 追記した行の番号（0から）
+}
+
 const isBlank = (s: string | undefined): boolean => (s ?? '').trim() === '';
 
 /** 「時刻 | 見出し | タグ」を1行ずつ読み、時刻順に並べて返す */
@@ -104,7 +109,7 @@ export function insertUnderHeading(
 	slots: TimeSlot[],
 	line: string,
 	withRule: boolean,
-): string {
+): Inserted {
 	const lines = data.split('\n');
 	const headings = findHeadings(lines);
 	const block = withRule ? [`## ${slot.heading}`, '---', line] : [`## ${slot.heading}`, line];
@@ -116,7 +121,7 @@ export function insertUnderHeading(
 		let end = next ? next.index : lines.length;
 		while (end > target.index + 1 && isBlank(lines[end - 1])) end--;
 		lines.splice(end, 0, line);
-		return lines.join('\n');
+		return { data: lines.join('\n'), line: end };
 	}
 
 	// 見出しがない場合：後の時間帯の見出しがあればその前に、なければ末尾に作る
@@ -124,11 +129,12 @@ export function insertUnderHeading(
 	const laterHeading = headings.find((h) => h.level === 2 && later.has(h.text));
 	if (laterHeading) {
 		lines.splice(laterHeading.index, 0, ...block, '');
-		return lines.join('\n');
+		return { data: lines.join('\n'), line: laterHeading.index + block.length - 1 };
 	}
 
 	while (lines.length > 0 && isBlank(lines[lines.length - 1])) lines.pop();
 	if (lines.length > 0) lines.push('');
+	const start = lines.length;
 	lines.push(...block, '');
-	return lines.join('\n');
+	return { data: lines.join('\n'), line: start + block.length - 1 };
 }
