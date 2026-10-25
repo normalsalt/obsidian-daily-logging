@@ -8,6 +8,8 @@
 - `npm run lint` と `npm run build` は、変更のたびに両方通す（build は tsc の型チェックを含む）
 - `npm run dev` は監視モード。ユーザーが別のターミナルで動かすので、実行しない
 - Obsidian での動作確認はユーザーが行う。変更ごとに確認手順を短く示す
+- 実行してよいコマンド、確認が必要なコマンド、禁止するコマンドは `.claude/settings.json` を参照
+- そこにないコマンドを実行するときは、`.claude/settings.json` に追加するかどうかもユーザーに確認する
 
 ## 構成
 
@@ -26,7 +28,7 @@
 - 循環参照を避ける。`task-view.ts` から `main.ts` へは `import type` だけにする。共有する値は `daily-notes.ts` などに置く
 - `console.error` は `reportError` の中だけで使う
 - 非公開 API の戻り値は、使う前に確かめる（`unknown` で受けるか、型を付けても `instanceof` などで確認する）。使えないときは `getDailyNotes()` が `null` を返し、利用者には通知とタスク一覧の警告で知らせる
-- `npm audit fix --force` は使わない（eslint-plugin-obsidianmd が古い版に戻る）。moment は package.json の `overrides` で固定している
+- moment は package.json の `overrides` で固定している
 - 依存パッケージを追加・更新する前に相談する
 
 ## コードからは分からない仕様の決定
