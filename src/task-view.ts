@@ -1,11 +1,10 @@
-import { ItemView, Keymap, TFile, WorkspaceLeaf, debounce, setIcon } from 'obsidian';
+import { ItemView, Keymap, debounce, setIcon } from 'obsidian';
+import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type DailyLoggingPlugin from './main';
 import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
 import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
-	TaskContext,
-	TaskProps,
 	compareTasks,
 	groupOf,
 	isRunning,
@@ -13,6 +12,7 @@ import {
 	readTask,
 	scheduledDay,
 } from './task';
+import type { TaskContext, TaskProps } from './task';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
 

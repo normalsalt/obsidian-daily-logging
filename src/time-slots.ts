@@ -1,4 +1,4 @@
-import { moment } from 'obsidian';
+import type { moment } from 'obsidian';
 
 type Moment = ReturnType<typeof moment>;
 

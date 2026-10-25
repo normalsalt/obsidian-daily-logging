@@ -1,5 +1,6 @@
 import { moment } from 'obsidian';
-import { TimeSlot, logicalDate, resolvePlacement } from './time-slots';
+import { logicalDate, resolvePlacement } from './time-slots';
+import type { TimeSlot } from './time-slots';
 
 export type Moment = ReturnType<typeof moment>;
 

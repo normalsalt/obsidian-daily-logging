@@ -29,4 +29,9 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		rules: {
+			'@typescript-eslint/consistent-type-imports': 'error',
+		},
+	},
 );

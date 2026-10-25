@@ -1,6 +1,7 @@
-import { App, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
-import DailyLoggingPlugin from './main';
+import { PluginSettingTab } from 'obsidian';
+import type { App, SettingDefinitionItem } from 'obsidian';
 import { parseTimeSlots } from './time-slots';
+import type DailyLoggingPlugin from './main';
 
 export interface DailyLoggingSettings {
 	/** 記録する拡張子（カンマ区切り） */

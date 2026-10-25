@@ -1,4 +1,5 @@
-import { App, Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
+import { Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
+import type { App } from 'obsidian';
 
 type Moment = ReturnType<typeof moment>;
 

@@ -1,11 +1,12 @@
-import { Notice, Plugin, TAbstractFile, TFile, debounce, moment } from 'obsidian';
+import { Notice, Plugin, TFile, debounce, moment } from 'obsidian';
+import type { TAbstractFile } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
-	DailyLoggingSettings,
 	DailyLoggingSettingTab,
 	parseExtensions,
 	parseWeekdays,
 } from './settings';
+import type { DailyLoggingSettings } from './settings';
 import {
 	NO_DAILY_NOTES_MESSAGE,
 	appendLine,
@@ -22,15 +23,13 @@ import {
 	resolvePlacement,
 } from './time-slots';
 import {
-	Moment,
 	PROP_DATE_FORMAT,
-	TaskContext,
-	TaskPropNames,
 	formatDuration,
 	isRunning,
 	readTask,
 	shouldClearScheduled,
 } from './task';
+import type { Moment, TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 
 /** 作成から何ミリ秒以内に開かれたら記録するか */
