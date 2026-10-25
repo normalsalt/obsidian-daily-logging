@@ -30,6 +30,12 @@ export function getDailyNotes(app: App): DailyNotesInstance | null {
 		typeof dn.getFormat === 'function' &&
 		typeof dn.getDailyNote === 'function'
 	) {
+		// フォルダが判定できない形に変わっていたら、使えないものとして扱う
+		try {
+			folderOf(dn as DailyNotesInstance);
+		} catch {
+			return null;
+		}
 		return dn as DailyNotesInstance;
 	}
 	return null;
