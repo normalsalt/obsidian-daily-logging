@@ -4,7 +4,13 @@
 			"Bash(npm run lint)",
 			"Bash(npm run lint -- --fix)",
 			"Bash(npx eslint . --fix)",
-			"Bash(npm run build)"
+			"Bash(npm run build)",
+			"Bash(obsidian dev:debug on)",
+			"Bash(obsidian plugin:reload id=daily-logging)",
+			"Bash(obsidian dev:errors)",
+			"Bash(obsidian dev:errors clear)",
+			"Bash(obsidian dev:console clear)",
+			"Bash(obsidian dev:console level=error)"
 		],
 		"ask": ["Bash(git commit *)"],
 		"deny": [

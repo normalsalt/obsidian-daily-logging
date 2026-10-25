@@ -5,9 +5,15 @@
 
 ## コマンド
 
-- `npm run lint` と `npm run build` は、変更のたびに両方通す（build は tsc の型チェックを含む）
+- コードを変えたら、次の順で確かめる。どこかで失敗したら、直してから先へ進む
+  1. `npm run lint`
+  2. `npm run build`（tsc の型チェックを含む）
+  3. `obsidian dev:debug on`（`dev:console` はデバッガーを接続しないと使えない）
+  4. `obsidian dev:errors clear` と `obsidian dev:console clear`
+  5. `obsidian plugin:reload id=daily-logging`
+  6. `obsidian dev:errors` と `obsidian dev:console level=error` で、エラーが出ていないか見る
 - `npm run dev` は監視モード。ユーザーが別のターミナルで動かすので、実行しない
-- Obsidian での動作確認はユーザーが行う。変更ごとに確認手順を短く示す
+- 読み込みのエラーまでは上の手順で確かめる。操作しての動作確認はユーザーが行うので、変更ごとに確認手順を短く示す
 - 実行してよいコマンド、確認が必要なコマンド、禁止するコマンドは `.claude/settings.json` を参照
 - そこにないコマンドを実行するときは、`.claude/settings.json` に追加するかどうかもユーザーに確認する
 
