@@ -119,11 +119,6 @@ export function groupOf(t: TaskProps, ctx: TaskContext): number {
 	return index >= 0 ? index : GROUP_OTHER;
 }
 
-/** 終了したときに予定日時を消すか（今日以前の予定だけ消す） */
-export function shouldClearScheduled(t: TaskProps, ctx: TaskContext): boolean {
-	return t.scheduled !== null && !scheduledDay(t.scheduled, ctx).isAfter(ctx.today, 'day');
-}
-
 function compareMoment(a: Moment | null, b: Moment | null): number {
 	if (a && b) return a.valueOf() - b.valueOf();
 	if (a) return -1;

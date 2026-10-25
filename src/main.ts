@@ -27,7 +27,6 @@ import {
 	formatDuration,
 	isRunning,
 	readTask,
-	shouldClearScheduled,
 } from './task';
 import type { Moment, TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
@@ -189,7 +188,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		await updated;
 	}
 
-	/** タスクを終了する。今日以前の予定日時は値だけ空にする */
+	/** タスクを終了する。予定日時は値だけ空にする */
 	async endTask(file: TFile): Promise<void> {
 		await this.finishTask(file, 'end');
 	}
@@ -205,7 +204,6 @@ export default class DailyLoggingPlugin extends Plugin {
 
 		const now = moment();
 		const names = this.taskPropNames();
-		const ctx = this.taskContext();
 		const before: { start: Moment | null } = { start: null };
 		const updated = this.waitForMetadata(file);
 
@@ -215,7 +213,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			fm[names.end] = now.format(PROP_DATE_FORMAT);
 
 			if (mode === 'end') {
-				if (props && shouldClearScheduled(props, ctx)) fm[names.scheduled] = null; // 値だけ空にする
+				if (names.scheduled in fm) fm[names.scheduled] = null; // 値だけ空にする
 			} else {
 				// 一定時間後に再開する見込みとして、予定日時を入れる（日付をまたいでもよい）
 				const resumeAt = now.clone().add(this.resumeMinutes(), 'minutes');

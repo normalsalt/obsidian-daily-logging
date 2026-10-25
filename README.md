@@ -53,7 +53,7 @@ A task scheduled for a later day is hidden until that day, even if it repeats to
 | Action    | What it does                                                                                       |
 | --------- | -------------------------------------------------------------------------------------------------- |
 | Start     | Sets `started` and logs it. Works on any Markdown file, even one without properties.               |
-| End       | Sets `ended` and logs it with the time spent. Clears `scheduled` if it is today or earlier.        |
+| End       | Sets `ended` and logs it with the time spent. Clears `scheduled`.                                  |
 | Interrupt | Sets `ended` and logs it with the time spent. Sets `scheduled` to 15 minutes later, so the task stays in the list. |
 
 The **Start task**, **End task**, and **Interrupt task** commands work on the file that is currently open. You can assign hotkeys to them.
