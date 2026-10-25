@@ -97,9 +97,8 @@ function matchesCycle(t: TaskProps, ctx: TaskContext): boolean {
 export function isVisible(t: TaskProps, ctx: TaskContext): boolean {
 	if (isRunning(t)) return true;
 	if (t.scheduled) {
-		const day = scheduledDay(t.scheduled, ctx);
-		if (day.isSame(ctx.today, 'day')) return true;
-		if (day.isAfter(ctx.today, 'day')) return false; // 未来の予定は周期より優先
+		// 未来の予定は周期より優先して隠す。今日以前の予定は、終了して空になるまで表示する
+		return !scheduledDay(t.scheduled, ctx).isAfter(ctx.today, 'day');
 	}
 	if (isDoneToday(t, ctx)) return false;
 	return matchesCycle(t, ctx);

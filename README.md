@@ -45,7 +45,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 A task is shown when one of the following applies:
 
 - It is running.
-- It is scheduled for today.
+- It is scheduled for today or an earlier day. Overdue tasks stay in the list until you end them.
 - It repeats today and hasn't been ended today.
 
 A task scheduled for a later day is hidden until that day, even if it repeats today.
