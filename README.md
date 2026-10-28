@@ -68,7 +68,7 @@ Daily Logging can turn your Google Calendar events into tasks. It fetches the ev
 
 In the **Calendar** settings, enter the web app's URL and choose the secret that holds its token. The token is kept in Obsidian's secret storage, not in the plugin's settings file.
 
-Events are fetched every day, a set number of minutes before the start of the day (default: 15), while the vault is open. If the vault isn't open at that time, they aren't fetched that day. You can also fetch them at any time with the **Fetch calendar events** command.
+Events are fetched every day, a set number of minutes before the start of the day (default: 15), while the vault is open. If the vault isn't open at that time, they aren't fetched that day. You can also fetch them at any time with the **Fetch calendar events** command, or with the refresh button at the top of the task list.
 
 For each event, a note named after the event is used at the top level of the vault. If it doesn't exist, it is created. Its `scheduled` and `location` properties are overwritten with the event's start and location each time. The event's description is added to the end of the note, unless the note already contains it. For an all-day event that started on an earlier day, `scheduled` is set to today.
 
