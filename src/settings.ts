@@ -25,6 +25,11 @@ export interface DailyLoggingSettings {
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
 	weekdayValues: string;
+	/** 平日・休日の表記 */
+	workdayValue: string;
+	holidayValue: string;
+	/** 予定日時が今日なら休日とするノートの名前 */
+	holidayNote: string;
 	/** 中断してから再開するまでの見込み（分） */
 	resumeMinutes: string;
 	/** タスクを記録したら、デイリーノートの追記した行を表示する */
@@ -68,6 +73,9 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	endProp: 'ended',
 	everydayValue: 'Every day',
 	weekdayValues: 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
+	workdayValue: 'Workday',
+	holidayValue: 'Holiday',
+	holidayNote: '',
 	resumeMinutes: '15',
 	openDailyNote: true,
 
@@ -206,6 +214,21 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 							validate: (value) =>
 								parseWeekdays(value) ? '' : 'Enter exactly 7 values, from Monday to Sunday.',
 						},
+					},
+					{
+						name: 'Workday value',
+						desc: "Repeat value that matches days that aren't holidays.",
+						control: { type: 'text', key: 'workdayValue', placeholder: d.workdayValue },
+					},
+					{
+						name: 'Holiday value',
+						desc: 'Repeat value that matches holidays.',
+						control: { type: 'text', key: 'holidayValue', placeholder: d.holidayValue },
+					},
+					{
+						name: 'Holiday note',
+						desc: 'Name of the note whose scheduled date marks today as a holiday. Leave empty to treat every day as a workday.',
+						control: { type: 'text', key: 'holidayNote' },
 					},
 					{
 						name: 'Resume after interruption',

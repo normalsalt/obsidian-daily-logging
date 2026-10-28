@@ -33,6 +33,9 @@ export interface TaskContext {
 	toPreviousDay: boolean;
 	everyday: string;
 	weekdays: string[]; // 月曜日から順に7つ
+	workday: string;
+	holiday: string;
+	isHoliday: boolean; // 論理上の今日が休日か
 }
 
 /** グループの並び順。実行中、その他、時間帯（0, 1, 2…）の順 */
@@ -74,9 +77,24 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 	};
 }
 
+function dayOf(d: TaskDate, boundary: number): Moment {
+	return d.hasTime ? logicalDate(d.value, boundary) : d.value.clone().startOf('day');
+}
+
 /** 予定日時の論理上の日付。日付だけなら、その日のまま */
 export function scheduledDay(d: TaskDate, ctx: TaskContext): Moment {
-	return d.hasTime ? logicalDate(d.value, ctx.boundary) : d.value.clone().startOf('day');
+	return dayOf(d, ctx.boundary);
+}
+
+/** 休日のノートの予定日時の論理上の日付が today なら、休日 */
+export function isHolidayToday(
+	fm: Record<string, unknown> | undefined,
+	scheduledProp: string,
+	today: Moment,
+	boundary: number,
+): boolean {
+	const d = toTaskDate(fm?.[scheduledProp]);
+	return d !== null && dayOf(d, boundary).isSame(today, 'day');
 }
 
 /** 実行中か。開始時に終了日時を空にするので、終了日時が開始日時と同じ分なら終了済み */
@@ -91,7 +109,12 @@ function isDoneToday(t: TaskProps, ctx: TaskContext): boolean {
 function matchesCycle(t: TaskProps, ctx: TaskContext): boolean {
 	const values = new Set(t.cycle.map((v) => v.toLowerCase()));
 	const weekday = ctx.weekdays[ctx.today.isoWeekday() - 1] ?? '';
-	return values.has(ctx.everyday.toLowerCase()) || values.has(weekday.toLowerCase());
+	const dayType = ctx.isHoliday ? ctx.holiday : ctx.workday;
+	return (
+		values.has(ctx.everyday.toLowerCase()) ||
+		values.has(weekday.toLowerCase()) ||
+		values.has(dayType.toLowerCase())
+	);
 }
 
 /** サイドバーに表示するか */

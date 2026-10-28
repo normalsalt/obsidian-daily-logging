@@ -119,10 +119,12 @@ export class TaskView extends ItemView {
 	private collect(ctx: TaskContext): TaskEntry[] {
 		const names = this.plugin.taskPropNames();
 		const dn = getDailyNotes(this.app);
+		const holidayNote = this.plugin.holidayNote();
 		const entries: TaskEntry[] = [];
 
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			if (dn && isDailyNote(file, dn)) continue;
+			if (file === holidayNote) continue; // 休日の判定に使うノートはタスクではない
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 			const props = readTask(fm, names);
 			if (!props || !isVisible(props, ctx)) continue;

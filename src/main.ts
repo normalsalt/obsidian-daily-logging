@@ -26,6 +26,7 @@ import {
 import {
 	PROP_DATE_FORMAT,
 	formatDuration,
+	isHolidayToday,
 	isRunning,
 	readTask,
 } from './task';
@@ -407,15 +408,29 @@ export default class DailyLoggingPlugin extends Plugin {
 		const s = this.settings;
 		const slots = s.useHeadings ? parseTimeSlots(s.timeSlots).slots : [];
 		const boundary = dayBoundary(slots, s.logToPreviousDay);
+		const today = logicalDate(moment(), boundary);
+		const holidayNote = this.holidayNote();
+		const holidayFm = holidayNote
+			? this.app.metadataCache.getFileCache(holidayNote)?.frontmatter
+			: undefined;
 		return {
-			today: logicalDate(moment(), boundary),
+			today,
 			boundary,
 			slots,
 			toPreviousDay: s.logToPreviousDay,
 			everyday: s.everydayValue.trim() || DEFAULT_SETTINGS.everydayValue,
 			weekdays:
 				parseWeekdays(s.weekdayValues) ?? parseWeekdays(DEFAULT_SETTINGS.weekdayValues) ?? [],
+			workday: s.workdayValue.trim() || DEFAULT_SETTINGS.workdayValue,
+			holiday: s.holidayValue.trim() || DEFAULT_SETTINGS.holidayValue,
+			isHoliday: isHolidayToday(holidayFm, this.taskPropNames().scheduled, today, boundary),
 		};
+	}
+
+	/** 休日の判定に使うノート（リンクと同じ探し方）。設定が空か、見つからなければ null */
+	holidayNote(): TFile | null {
+		const name = this.settings.holidayNote.trim();
+		return name ? this.app.metadataCache.getFirstLinkpathDest(name, '') : null;
 	}
 
 	/** タスクのプロパティ名（空欄なら既定値） */

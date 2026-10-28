@@ -36,7 +36,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 
 | Property    | Type        | Meaning                                                        |
 | ----------- | ----------- | -------------------------------------------------------------- |
-| `repeat`    | List        | Days the task appears: `Every day`, or weekdays such as `Monday` |
+| `repeat`    | List        | Days the task appears: `Every day`, `Workday`, `Holiday`, or weekdays such as `Monday` |
 | `section`   | Text        | Tag of the time slot to group the task under                   |
 | `scheduled` | Date & time | Show the task on this day                                      |
 | `started`   | Date & time | Set by the plugin when you start the task                      |
@@ -49,6 +49,8 @@ A task is shown when one of the following applies:
 - It repeats today and hasn't been ended today.
 
 A task scheduled for a later day is hidden until that day, even if it repeats today.
+
+To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in the settings. If the `scheduled` date of that note is today, today is a holiday. Otherwise, it is a workday. If you add an all-day event with that name to your calendar, its date is set when events are fetched (see [Calendar events](#calendar-events)). The holiday note itself isn't shown in the task list.
 
 | Action    | What it does                                                                                       |
 | --------- | -------------------------------------------------------------------------------------------------- |
@@ -68,7 +70,7 @@ In the **Calendar** settings, enter the web app's URL and choose the secret that
 
 Events are fetched every day, a set number of minutes before the start of the day (default: 15), while the vault is open. If the vault isn't open at that time, they aren't fetched that day. You can also fetch them at any time with the **Fetch calendar events** command.
 
-For each event, a note named after the event is used at the top level of the vault. If it doesn't exist, it is created. Its `scheduled` and `location` properties are overwritten with the event's start and location each time. The event's description is added to the end of the note, unless the note already contains it.
+For each event, a note named after the event is used at the top level of the vault. If it doesn't exist, it is created. Its `scheduled` and `location` properties are overwritten with the event's start and location each time. The event's description is added to the end of the note, unless the note already contains it. For an all-day event that started on an earlier day, `scheduled` is set to today.
 
 If the start of the day is midnight, the scheduled fetch runs late the previous evening, and only the events of the next few minutes are fetched. Use the command instead in that case.
 
