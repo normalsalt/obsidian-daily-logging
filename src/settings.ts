@@ -37,6 +37,15 @@ export interface DailyLoggingSettings {
 	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
+
+	/** 予定を返す GAS ウェブアプリの URL */
+	calendarUrl: string;
+	/** トークンの SecretStorage のキー（値そのものではない） */
+	calendarToken: string;
+	/** 1日の区切りの何分前に予定を取得するか */
+	calendarMinutesBefore: string;
+	/** 予定の場所を書くプロパティ名 */
+	locationProp: string;
 }
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
@@ -67,6 +76,11 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	interruptLabel: 'interrupted',
 	runningGroupLabel: 'Running',
 	otherGroupLabel: 'Other',
+
+	calendarUrl: '',
+	calendarToken: '',
+	calendarMinutesBefore: '15',
+	locationProp: 'location',
 };
 
 /** "md, .Canvas  pdf" → Set { 'md', 'canvas', 'pdf' } */
@@ -239,6 +253,38 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Other group name',
 						desc: 'Group name for tasks that match no time slot.',
 						control: { type: 'text', key: 'otherGroupLabel', placeholder: d.otherGroupLabel },
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Calendar',
+				items: [
+					{
+						name: 'Web app URL',
+						desc: 'URL of the Google Apps Script web app that returns calendar events. Leave empty to turn off.',
+						control: { type: 'text', key: 'calendarUrl', placeholder: 'https://script.google.com/macros/s/.../exec' },
+					},
+					{
+						name: 'Token',
+						desc: 'Secret that holds the token for the web app.',
+						control: { type: 'secret', key: 'calendarToken' },
+					},
+					{
+						name: 'Minutes before the day starts',
+						desc: 'Events are fetched every day this many minutes before the start of the day, while the vault is open.',
+						control: {
+							type: 'text',
+							key: 'calendarMinutesBefore',
+							placeholder: d.calendarMinutesBefore,
+							validate: (value) =>
+								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
+						},
+					},
+					{
+						name: 'Location property',
+						desc: 'Text property that holds the location of an event.',
+						control: { type: 'text', key: 'locationProp', placeholder: d.locationProp },
 					},
 				],
 			},

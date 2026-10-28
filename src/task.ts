@@ -10,6 +10,7 @@ export interface TaskPropNames {
 	scheduled: string;
 	start: string;
 	end: string;
+	location: string;
 }
 
 export interface TaskDate {

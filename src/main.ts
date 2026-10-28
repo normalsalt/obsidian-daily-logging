@@ -31,6 +31,7 @@ import {
 } from './task';
 import type { Moment, TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
+import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
 
 /** 作成から何ミリ秒以内に開かれたら記録するか */
 const OPEN_WINDOW_MS = 5000;
@@ -46,6 +47,12 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 新規ファイルの記録で、デイリーノートが使えないことをすでに知らせたか */
 	private warnedNoDailyNotes = false;
+
+	/** 予定を取得している最中か（重ねて動かさないため） */
+	private calendarBusy = false;
+
+	/** 最後に予定を自動で取得した日（YYYY-MM-DD） */
+	private lastCalendarFetch = '';
 
 	/** 開いているタスク一覧をすべて描き直す（設定の入力中は何度も呼ばれるので、まとめて行う） */
 	requestTaskViewRefresh = debounce(
@@ -87,6 +94,15 @@ export default class DailyLoggingPlugin extends Plugin {
 			name: 'Interrupt task',
 			checkCallback: (checking) => this.taskCommand(checking, true, (f) => this.interruptTask(f)),
 		});
+		this.addCommand({
+			id: 'fetch-calendar-events',
+			name: 'Fetch calendar events',
+			checkCallback: (checking) => {
+				if (!this.calendarConfig()) return false;
+				if (!checking) void this.fetchCalendar(true);
+				return true;
+			},
+		});
 
 		// Vault の読み込み時には、既存のすべてのファイルについて create が発生するため、
 		// レイアウトの準備が終わってから登録する
@@ -98,7 +114,54 @@ export default class DailyLoggingPlugin extends Plugin {
 				vault.on('rename', (file, oldPath) => this.handleRename(file, oldPath)),
 			);
 			this.registerEvent(vault.on('delete', (file) => this.pending.delete(file.path)));
+			this.registerInterval(window.setInterval(() => this.checkCalendarSchedule(), 30_000));
 		});
+	}
+
+	/** 予定の取得に使う URL とトークン。どちらかが空なら null */
+	private calendarConfig(): { url: string; token: string } | null {
+		const url = this.settings.calendarUrl.trim();
+		const key = this.settings.calendarToken.trim();
+		const token = key ? this.app.secretStorage.getSecret(key) : null;
+		return url && token ? { url, token } : null;
+	}
+
+	/**
+	 * 1日の区切りの N 分前になったら、その日1回だけ予定を取得する。
+	 * その時刻に開いていなかった日は取得しない（取り逃しは補わない）
+	 */
+	private checkCalendarSchedule(): void {
+		if (!this.calendarConfig()) return;
+		const minutes = this.minutesSetting(
+			this.settings.calendarMinutesBefore,
+			DEFAULT_SETTINGS.calendarMinutesBefore,
+		);
+		const target = (((this.taskContext().boundary - minutes) % 1440) + 1440) % 1440;
+		const now = moment();
+		if (now.hours() * 60 + now.minutes() !== target) return;
+
+		const day = now.format('YYYY-MM-DD');
+		if (this.lastCalendarFetch === day) return;
+		this.lastCalendarFetch = day;
+		void this.fetchCalendar(false);
+	}
+
+	/** 予定を取得し、保管庫直下のファイルを作成・更新する。コマンドからなら件数を知らせる */
+	async fetchCalendar(manual: boolean): Promise<void> {
+		const config = this.calendarConfig();
+		if (!config || this.calendarBusy) return;
+		this.calendarBusy = true;
+		try {
+			// 範囲の終わりは、翌日の1日の区切りの時刻
+			const until = moment().startOf('day').add(this.taskContext().boundary, 'minutes').format('HH:mm');
+			const events = await fetchCalendarEvents(config.url, config.token, until);
+			const { created, updated } = await syncCalendarEvents(this.app, events, this.taskPropNames());
+			if (manual) new Notice(`Calendar: ${created} created, ${updated} updated.`);
+		} catch (err) {
+			reportError(err);
+		} finally {
+			this.calendarBusy = false;
+		}
 	}
 
 	/** 作成されたファイルを控えておく。記録は開かれたときに行う */
@@ -366,6 +429,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			scheduled: pick(s.scheduledProp, d.scheduledProp),
 			start: pick(s.startProp, d.startProp),
 			end: pick(s.endProp, d.endProp),
+			location: pick(s.locationProp, d.locationProp),
 		};
 	}
 
@@ -385,9 +449,13 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 中断から再開までの見込み（分）。不正な値なら既定値 */
 	resumeMinutes(): number {
-		const value = this.settings.resumeMinutes.trim();
-		const fallback = Number(DEFAULT_SETTINGS.resumeMinutes);
-		return /^\d+$/.test(value) ? Number(value) : fallback;
+		return this.minutesSetting(this.settings.resumeMinutes, DEFAULT_SETTINGS.resumeMinutes);
+	}
+
+	/** 分の設定を数にする。不正な値なら既定値 */
+	private minutesSetting(value: string, fallback: string): number {
+		const v = value.trim();
+		return /^\d+$/.test(v) ? Number(v) : Number(fallback);
 	}
 
 	async loadSettings() {
