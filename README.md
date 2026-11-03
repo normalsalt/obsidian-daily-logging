@@ -26,6 +26,8 @@ When you create a note, Daily Logging appends the time and a link to today's dai
 
 A line is added when you create a file and open it within a few seconds on the same device. Files added by Git pull or by other tools aren't logged, because they are never opened. Daily notes themselves are never logged.
 
+For a note created from a template with [Templater](https://github.com/SilentVoid13/Templater), the time is when the template has been applied, so you can take your time answering its prompts.
+
 - **File extensions**: Only files with these extensions are logged (default: `md`).
 - **Time slots**: Each entry is added under the heading of its time slot. If the heading doesn't exist yet, it is created. Each slot is written on one line as `time | heading | tag`.
 - **Early entries**: Entries before the first time slot go to the previous day's daily note, under the last slot. In the task list, this time is also used as the start of the day.

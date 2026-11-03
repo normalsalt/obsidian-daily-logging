@@ -1,5 +1,5 @@
 import { MarkdownView, Notice, Plugin, TFile, debounce, moment } from 'obsidian';
-import type { Editor, TAbstractFile } from 'obsidian';
+import type { Editor, Events, TAbstractFile } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyLoggingSettingTab,
@@ -111,6 +111,11 @@ export default class DailyLoggingPlugin extends Plugin {
 			const { vault, workspace } = this.app;
 			this.registerEvent(vault.on('create', (file) => this.handleCreate(file)));
 			this.registerEvent(workspace.on('file-open', (file) => this.handleOpen(file)));
+			// Templater のイベントは Workspace の型にないので、Events として登録する
+			const events: Events = workspace;
+			this.registerEvent(
+				events.on('templater:new-note-from-template', (data) => this.handleTemplater(data)),
+			);
 			this.registerEvent(
 				vault.on('rename', (file, oldPath) => this.handleRename(file, oldPath)),
 			);
@@ -172,6 +177,19 @@ export default class DailyLoggingPlugin extends Plugin {
 
 		this.prunePending();
 		this.pending.set(file.path, moment()); // 記録する時刻は作成時刻
+	}
+
+	/**
+	 * Templater がテンプレートを書き終えたら、その時刻を作成時刻とする。
+	 * 選択肢を選ぶ間に時間切れにならないように、数え始めをここからにする
+	 */
+	private handleTemplater(data: unknown): void {
+		// 他のプラグインのイベントなので、形を確かめてから使う
+		const file = typeof data === 'object' && data !== null && 'file' in data ? data.file : null;
+		if (!(file instanceof TFile)) return;
+		if (!parseExtensions(this.settings.extensions).has(file.extension.toLowerCase())) return;
+
+		this.pending.set(file.path, moment());
 	}
 
 	/**
