@@ -1,5 +1,5 @@
 import { MarkdownView, Notice, Plugin, TFile, debounce, moment } from 'obsidian';
-import type { Editor, Events, TAbstractFile } from 'obsidian';
+import type { Editor, Events, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
 	DailyLoggingSettingTab,
@@ -45,6 +45,9 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 作成されたが、まだ開かれていないファイル（パス → 作成時刻） */
 	private pending = new Map<string, Moment>();
+
+	/** 葉ごとに、最後に表示したファイルのパス（タブの切り替えと、新しく開いたのを区別するため） */
+	private shownFiles = new WeakMap<WorkspaceLeaf, string>();
 
 	/** 新規ファイルの記録で、デイリーノートが使えないことをすでに知らせたか */
 	private warnedNoDailyNotes = false;
@@ -111,6 +114,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			const { vault, workspace } = this.app;
 			this.registerEvent(vault.on('create', (file) => this.handleCreate(file)));
 			this.registerEvent(workspace.on('file-open', (file) => this.handleOpen(file)));
+			this.registerEvent(workspace.on('file-open', (file) => this.moveCursorToEnd(file)));
 			// Templater のイベントは Workspace の型にないので、Events として登録する
 			const events: Events = workspace;
 			this.registerEvent(
@@ -204,6 +208,30 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (moment().diff(createdAt) > OPEN_WINDOW_MS) return;
 
 		void this.logEntry(file, createdAt);
+	}
+
+	/**
+	 * デイリーノートを新しく開いたら、カーソルを末尾に置く。
+	 * タブを切り替えただけのときや、見出しへのリンク・「戻る」などで位置が決まっているときは動かさない
+	 */
+	private moveCursorToEnd(file: TFile | null): void {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!file || !view || view.file !== file) return;
+		const shown = this.shownFiles.get(view.leaf);
+		this.shownFiles.set(view.leaf, file.path);
+		if (shown === file.path) return;
+		if (!this.settings.cursorToEnd || view.getMode() !== 'source') return;
+
+		const dn = getDailyNotes(this.app);
+		if (!dn || !isDailyNote(file, dn)) return;
+		const { editor } = view;
+		const cursor = editor.getCursor();
+		if (cursor.line !== 0 || cursor.ch !== 0) return; // 先頭でなければ、位置が決まっている
+
+		const line = editor.lastLine();
+		const pos = { line, ch: editor.getLine(line).length };
+		editor.setCursor(pos);
+		editor.scrollIntoView({ from: pos, to: pos }, true);
 	}
 
 	/** 開かれる前に改名されたら、控えのパスも変える */

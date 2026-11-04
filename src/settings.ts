@@ -6,6 +6,8 @@ import type DailyLoggingPlugin from './main';
 export interface DailyLoggingSettings {
 	/** 記録する拡張子（カンマ区切り） */
 	extensions: string;
+	/** デイリーノートを開いたら、カーソルをファイルの末尾に置く */
+	cursorToEnd: boolean;
 	/** 時間帯の見出しの下に追記する */
 	useHeadings: boolean;
 	/** 新しく作る見出しの下に区切り線（---）を入れる */
@@ -55,6 +57,7 @@ export interface DailyLoggingSettings {
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	extensions: 'md',
+	cursorToEnd: true,
 	useHeadings: true,
 	headingRule: true,
 	logToPreviousDay: true,
@@ -135,6 +138,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				name: 'File extensions',
 				desc: 'Comma-separated list of file extensions to log when a file is created, for example: md, canvas, base',
 				control: { type: 'text', key: 'extensions', placeholder: 'md' },
+			},
+			{
+				name: 'Move the cursor to the end of daily notes',
+				desc: 'When you open a daily note, move the cursor to the end of the note, unless a link to a heading or block opened it.',
+				control: { type: 'toggle', key: 'cursorToEnd' },
 			},
 			{
 				type: 'group',

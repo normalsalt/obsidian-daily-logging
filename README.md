@@ -31,6 +31,10 @@ For a note created from a template with [Templater](https://github.com/SilentVoi
 - **Time slots**: Each entry is added under the heading of its time slot. If the heading doesn't exist yet, it is created. Each slot is written on one line as `time | heading | tag`.
 - **Early entries**: Entries before the first time slot go to the previous day's daily note, under the last slot. In the task list, this time is also used as the start of the day.
 
+## Opening daily notes
+
+When you open a daily note, the cursor moves to the end of the note, so you can start writing right away. It doesn't move when you only switch tabs, or when a link to a heading or block opened the note. You can turn this off with **Move the cursor to the end of daily notes** in the settings.
+
 ## Task list
 
 Open the list from the ribbon or with the **Open task list** command. Any Markdown file with one of the following properties is treated as a task. You can change the property names in the settings.
