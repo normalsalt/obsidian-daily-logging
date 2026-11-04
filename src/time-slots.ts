@@ -124,16 +124,18 @@ export function insertUnderHeading(
 		return { data: lines.join('\n'), line: end };
 	}
 
-	// 見出しがない場合：後の時間帯の見出しがあればその前に、なければ末尾に作る
+	// 見出しがない場合：後の時間帯の見出しがあればその前に、なければ末尾に作る。
+	// 前後に空行は入れない（直前の空行も詰める）
 	const later = new Set(slots.slice(slots.indexOf(slot) + 1).map((s) => s.heading));
 	const laterHeading = headings.find((h) => h.level === 2 && later.has(h.text));
 	if (laterHeading) {
-		lines.splice(laterHeading.index, 0, ...block, '');
-		return { data: lines.join('\n'), line: laterHeading.index + block.length - 1 };
+		let start = laterHeading.index;
+		while (start > 0 && isBlank(lines[start - 1])) start--;
+		lines.splice(start, laterHeading.index - start, ...block);
+		return { data: lines.join('\n'), line: start + block.length - 1 };
 	}
 
 	while (lines.length > 0 && isBlank(lines[lines.length - 1])) lines.pop();
-	if (lines.length > 0) lines.push('');
 	const start = lines.length;
 	lines.push(...block, '');
 	return { data: lines.join('\n'), line: start + block.length - 1 };

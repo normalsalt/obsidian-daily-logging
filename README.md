@@ -9,7 +9,6 @@ When you create a note, Daily Logging appends the time and a link to today's dai
 ---
 - 06:12 [[Stretching]] started
 - 06:30 [[Stretching]] ended (00:18)
-
 ## Main work
 ---
 - 13:05 [[Fix login bug]]
