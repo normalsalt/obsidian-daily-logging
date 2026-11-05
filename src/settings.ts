@@ -49,8 +49,6 @@ export interface DailyLoggingSettings {
 	calendarUrl: string;
 	/** トークンの SecretStorage のキー（値そのものではない） */
 	calendarToken: string;
-	/** 1日の区切りの何分前に予定を取得するか */
-	calendarMinutesBefore: string;
 	/** 予定の場所を書くプロパティ名 */
 	locationProp: string;
 }
@@ -90,7 +88,6 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 
 	calendarUrl: '',
 	calendarToken: '',
-	calendarMinutesBefore: '15',
 	locationProp: 'location',
 };
 
@@ -300,17 +297,6 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Token',
 						desc: 'Secret that holds the token for the web app.',
 						control: { type: 'secret', key: 'calendarToken' },
-					},
-					{
-						name: 'Minutes before the day starts',
-						desc: 'Events are fetched every day this many minutes before the start of the day, while the vault is open.',
-						control: {
-							type: 'text',
-							key: 'calendarMinutesBefore',
-							placeholder: d.calendarMinutesBefore,
-							validate: (value) =>
-								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
-						},
 					},
 					{
 						name: 'Location property',

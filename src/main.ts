@@ -55,9 +55,6 @@ export default class DailyLoggingPlugin extends Plugin {
 	/** 予定を取得している最中か（重ねて動かさないため） */
 	private calendarBusy = false;
 
-	/** 最後に予定を自動で取得した日（YYYY-MM-DD） */
-	private lastCalendarFetch = '';
-
 	/** 開いているタスク一覧をすべて描き直す（設定の入力中は何度も呼ばれるので、まとめて行う） */
 	requestTaskViewRefresh = debounce(
 		() => {
@@ -103,7 +100,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			name: 'Fetch calendar events',
 			checkCallback: (checking) => {
 				if (!this.calendarConfig()) return false;
-				if (!checking) void this.fetchCalendar(true);
+				if (!checking) void this.fetchCalendar();
 				return true;
 			},
 		});
@@ -124,7 +121,6 @@ export default class DailyLoggingPlugin extends Plugin {
 				vault.on('rename', (file, oldPath) => this.handleRename(file, oldPath)),
 			);
 			this.registerEvent(vault.on('delete', (file) => this.pending.delete(file.path)));
-			this.registerInterval(window.setInterval(() => this.checkCalendarSchedule(), 30_000));
 		});
 	}
 
@@ -136,28 +132,8 @@ export default class DailyLoggingPlugin extends Plugin {
 		return url && token ? { url, token } : null;
 	}
 
-	/**
-	 * 1日の区切りの N 分前になったら、その日1回だけ予定を取得する。
-	 * その時刻に開いていなかった日は取得しない（取り逃しは補わない）
-	 */
-	private checkCalendarSchedule(): void {
-		if (!this.calendarConfig()) return;
-		const minutes = this.minutesSetting(
-			this.settings.calendarMinutesBefore,
-			DEFAULT_SETTINGS.calendarMinutesBefore,
-		);
-		const target = (((this.taskContext().boundary - minutes) % 1440) + 1440) % 1440;
-		const now = moment();
-		if (now.hours() * 60 + now.minutes() !== target) return;
-
-		const day = now.format('YYYY-MM-DD');
-		if (this.lastCalendarFetch === day) return;
-		this.lastCalendarFetch = day;
-		void this.fetchCalendar(false);
-	}
-
-	/** 予定を取得し、保管庫直下のファイルを作成・更新する。コマンドからなら件数を知らせる */
-	async fetchCalendar(manual: boolean): Promise<void> {
+	/** 予定を取得し、保管庫直下のファイルを作成・更新して、件数を知らせる */
+	async fetchCalendar(): Promise<void> {
 		const config = this.calendarConfig();
 		if (!config || this.calendarBusy) return;
 		this.calendarBusy = true;
@@ -166,7 +142,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			const until = moment().startOf('day').add(this.taskContext().boundary, 'minutes').format('HH:mm');
 			const events = await fetchCalendarEvents(config.url, config.token, until);
 			const { created, updated } = await syncCalendarEvents(this.app, events, this.taskPropNames());
-			if (manual) new Notice(`Calendar: ${created} created, ${updated} updated.`);
+			new Notice(`Calendar: ${created} created, ${updated} updated.`);
 		} catch (err) {
 			reportError(err);
 		} finally {

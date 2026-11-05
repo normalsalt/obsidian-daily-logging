@@ -70,7 +70,7 @@ export class TaskView extends ItemView {
 		setIcon(refresh, 'refresh-cw');
 		// 予定も取得してから描き直す（URL かトークンが未設定なら、描き直すだけ）
 		this.registerDomEvent(refresh, 'click', () => {
-			void this.plugin.fetchCalendar(true).finally(() => this.render());
+			void this.plugin.fetchCalendar().finally(() => this.render());
 		});
 
 		this.listEl = root.createDiv({ cls: 'daily-logging-list' });
