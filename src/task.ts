@@ -143,6 +143,12 @@ export function groupOf(t: TaskProps, ctx: TaskContext): number {
 	return index >= 0 ? index : GROUP_OTHER;
 }
 
+/** 今の時間帯の番号（記録先と同じ決め方）。見出しを使わない、または時間帯の前なら null */
+export function currentSlot(ctx: TaskContext, now: Moment): number | null {
+	const { slot } = resolvePlacement(now, ctx.slots, ctx.toPreviousDay);
+	return slot ? ctx.slots.indexOf(slot) : null;
+}
+
 function compareMoment(a: Moment | null, b: Moment | null): number {
 	if (a && b) return a.valueOf() - b.valueOf();
 	if (a) return -1;

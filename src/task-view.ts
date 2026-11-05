@@ -1,4 +1,4 @@
-import { ItemView, Keymap, debounce, setIcon } from 'obsidian';
+import { ItemView, Keymap, debounce, moment, setIcon } from 'obsidian';
 import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type DailyLoggingPlugin from './main';
 import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
@@ -6,6 +6,7 @@ import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
 	compareTasks,
+	currentSlot,
 	groupOf,
 	isRunning,
 	isVisible,
@@ -37,6 +38,9 @@ export class TaskView extends ItemView {
 
 	/** 表示したときにデイリーノートが使えたか */
 	private shownAvailable = true;
+
+	/** 表示したときの今の時間帯（強調するグループ） */
+	private shownSlot: number | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: DailyLoggingPlugin) {
 		super(leaf);
@@ -108,12 +112,20 @@ export class TaskView extends ItemView {
 		});
 		this.registerEvent(resolved);
 
-		// 論理上の日付が変わったとき、Daily notes が使えるかどうかが変わったときに描き直す
+		// 論理上の日付、今の時間帯、Daily notes が使えるかどうかが変わったときに描き直す
 		this.registerInterval(
 			window.setInterval(() => {
-				const today = this.plugin.taskContext().today.format('YYYY-MM-DD');
+				const ctx = this.plugin.taskContext();
+				const today = ctx.today.format('YYYY-MM-DD');
+				const slot = currentSlot(ctx, moment());
 				const available = getDailyNotes(this.app) !== null;
-				if (today !== this.shownDay || available !== this.shownAvailable) this.render();
+				if (
+					today !== this.shownDay ||
+					slot !== this.shownSlot ||
+					available !== this.shownAvailable
+				) {
+					this.render();
+				}
 			}, 60_000),
 		);
 	}
@@ -151,6 +163,7 @@ export class TaskView extends ItemView {
 		this.shown = new Set(entries.map((e) => e.file.path));
 		this.shownDay = ctx.today.format('YYYY-MM-DD');
 		this.shownAvailable = getDailyNotes(this.app) !== null;
+		this.shownSlot = currentSlot(ctx, moment());
 		root.empty();
 
 		if (!this.shownAvailable) {
@@ -165,7 +178,8 @@ export class TaskView extends ItemView {
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
 		for (const group of groups) {
 			const section = root.createDiv({ cls: 'daily-logging-group' });
-			section.createEl('h4', { text: this.groupTitle(group, ctx) });
+			const heading = section.createEl('h4', { text: this.groupTitle(group, ctx) });
+			if (group === this.shownSlot) heading.addClass('is-current');
 			const list = section.createEl('ul');
 
 			entries
@@ -177,6 +191,7 @@ export class TaskView extends ItemView {
 
 	private renderTask(list: HTMLElement, entry: TaskEntry, ctx: TaskContext): void {
 		const item = list.createEl('li', { cls: 'daily-logging-task' });
+		if (isRunning(entry.props)) item.addClass('is-running');
 
 		const link = item.createEl('a', { cls: 'daily-logging-task-name', text: entry.name });
 		link.addEventListener('click', (evt) => {

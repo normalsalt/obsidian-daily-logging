@@ -8,6 +8,11 @@
 	font-size: var(--font-ui-small);
 }
 
+.daily-logging-tasks h4.is-current {
+	color: var(--text-accent);
+	font-weight: var(--font-bold);
+}
+
 .daily-logging-tasks ul {
 	list-style: none;
 	margin: 0;
@@ -28,6 +33,11 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	cursor: pointer;
+}
+
+.daily-logging-task.is-running .daily-logging-task-name {
+	color: var(--text-accent);
+	font-weight: var(--font-bold);
 }
 
 .daily-logging-task-meta {
