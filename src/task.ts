@@ -10,6 +10,7 @@ export interface TaskPropNames {
 	scheduled: string;
 	start: string;
 	end: string;
+	time: string;
 	location: string;
 }
 
@@ -24,6 +25,7 @@ export interface TaskProps {
 	scheduled: TaskDate | null;
 	start: Moment | null;
 	end: Moment | null;
+	time: number | null; // 予定時刻（0:00 からの分）
 }
 
 export interface TaskContext {
@@ -51,6 +53,15 @@ function toTaskDate(value: unknown): TaskDate | null {
 	return m.isValid() ? { value: m, hasTime: /\d:\d{2}/.test(v) } : null;
 }
 
+/** 「HH:mm」のテキストを 0:00 からの分にする。不正なら null */
+function toMinutes(value: unknown): number | null {
+	if (typeof value !== 'string') return null;
+	const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+	const h = Number(m?.[1]);
+	const min = Number(m?.[2]);
+	return m && h <= 23 && min <= 59 ? h * 60 + min : null;
+}
+
 function toStringList(value: unknown): string[] {
 	const list: unknown[] = Array.isArray(value) ? value : [value];
 	return list
@@ -74,6 +85,7 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 		scheduled,
 		start,
 		end: toTaskDate(fm[names.end])?.value ?? null,
+		time: toMinutes(fm[names.time]),
 	};
 }
 
@@ -84,6 +96,15 @@ function dayOf(d: TaskDate, boundary: number): Moment {
 /** 予定日時の論理上の日付。日付だけなら、その日のまま */
 export function scheduledDay(d: TaskDate, ctx: TaskContext): Moment {
 	return dayOf(d, ctx.boundary);
+}
+
+/** 予定日時。空なら予定時刻を、論理上の今日のその時刻とする（1日の区切りより前なら翌日の暦日） */
+export function effectiveScheduled(t: TaskProps, ctx: TaskContext): TaskDate | null {
+	if (t.scheduled) return t.scheduled;
+	if (t.time === null) return null;
+	const value = ctx.today.clone().add(t.time, 'minutes');
+	if (t.time < ctx.boundary) value.add(1, 'day');
+	return { value, hasTime: true };
 }
 
 /** 休日のノートの予定日時の論理上の日付が today なら、休日 */
@@ -132,9 +153,10 @@ export function isVisible(t: TaskProps, ctx: TaskContext): boolean {
 export function groupOf(t: TaskProps, ctx: TaskContext): number {
 	if (isRunning(t)) return GROUP_RUNNING;
 
-	// 今日の予定日時に時刻があれば、その時刻の時間帯
-	if (t.scheduled?.hasTime && scheduledDay(t.scheduled, ctx).isSame(ctx.today, 'day')) {
-		const { slot } = resolvePlacement(t.scheduled.value, ctx.slots, ctx.toPreviousDay);
+	// 今日の予定日時（空なら予定時刻）に時刻があれば、その時刻の時間帯
+	const scheduled = effectiveScheduled(t, ctx);
+	if (scheduled?.hasTime && scheduledDay(scheduled, ctx).isSame(ctx.today, 'day')) {
+		const { slot } = resolvePlacement(scheduled.value, ctx.slots, ctx.toPreviousDay);
 		if (slot) return ctx.slots.indexOf(slot);
 	}
 
@@ -156,13 +178,13 @@ function compareMoment(a: Moment | null, b: Moment | null): number {
 	return 0;
 }
 
-/** グループ内の並び順：予定日時、前回の開始日時、ファイル名（値がないものは後ろ） */
+/** グループ内の並び順：予定日時（空なら予定時刻）、前回の開始日時、ファイル名（値がないものは後ろ） */
 export function compareTasks(
-	a: { name: string; props: TaskProps },
-	b: { name: string; props: TaskProps },
+	a: { name: string; props: TaskProps; scheduled: TaskDate | null },
+	b: { name: string; props: TaskProps; scheduled: TaskDate | null },
 ): number {
 	return (
-		compareMoment(a.props.scheduled?.value ?? null, b.props.scheduled?.value ?? null) ||
+		compareMoment(a.scheduled?.value ?? null, b.scheduled?.value ?? null) ||
 		compareMoment(a.props.start, b.props.start) ||
 		a.name.localeCompare(b.name)
 	);

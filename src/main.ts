@@ -466,6 +466,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			scheduled: pick(s.scheduledProp, d.scheduledProp),
 			start: pick(s.startProp, d.startProp),
 			end: pick(s.endProp, d.endProp),
+			time: pick(s.timeProp, d.timeProp),
 			location: pick(s.locationProp, d.locationProp),
 		};
 	}

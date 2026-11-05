@@ -44,6 +44,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 | `repeat`    | List        | Days the task appears: `Every day`, `Workday`, `Holiday`, or weekdays such as `Monday` |
 | `section`   | Text        | Tag of the time slot to group the task under                   |
 | `scheduled` | Date & time | Show the task on this day                                      |
+| `time`      | Text        | Time of day, such as `18:00`. Used like the time of `scheduled` when `scheduled` is empty |
 | `started`   | Date & time | Set by the plugin when you start the task                      |
 | `ended`     | Date & time | Set by the plugin when you end or interrupt the task           |
 

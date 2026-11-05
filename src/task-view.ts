@@ -7,13 +7,14 @@ import {
 	GROUP_RUNNING,
 	compareTasks,
 	currentSlot,
+	effectiveScheduled,
 	groupOf,
 	isRunning,
 	isVisible,
 	readTask,
 	scheduledDay,
 } from './task';
-import type { TaskContext, TaskProps } from './task';
+import type { TaskContext, TaskDate, TaskProps } from './task';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
 
@@ -21,6 +22,7 @@ interface TaskEntry {
 	file: TFile;
 	name: string;
 	props: TaskProps;
+	scheduled: TaskDate | null; // 予定日時（空なら予定時刻）
 	group: number;
 }
 
@@ -143,7 +145,13 @@ export class TaskView extends ItemView {
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 			const props = readTask(fm, names);
 			if (!props || !isVisible(props, ctx)) continue;
-			entries.push({ file, name: file.basename, props, group: groupOf(props, ctx) });
+			entries.push({
+				file,
+				name: file.basename,
+				props,
+				scheduled: effectiveScheduled(props, ctx),
+				group: groupOf(props, ctx),
+			});
 		}
 		return entries;
 	}
@@ -199,7 +207,7 @@ export class TaskView extends ItemView {
 		});
 
 		// 今日の予定時刻があれば表示する
-		const s = entry.props.scheduled;
+		const s = entry.scheduled;
 		if (s?.hasTime && scheduledDay(s, ctx).isSame(ctx.today, 'day')) {
 			item.createSpan({ cls: 'daily-logging-task-meta', text: s.value.format('HH:mm') });
 		}

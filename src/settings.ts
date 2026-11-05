@@ -23,6 +23,8 @@ export interface DailyLoggingSettings {
 	scheduledProp: string;
 	startProp: string;
 	endProp: string;
+	/** 予定時刻（HH:mm のテキスト）のプロパティ名 */
+	timeProp: string;
 	/** repeat の値の表記 */
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
@@ -72,6 +74,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	scheduledProp: 'scheduled',
 	startProp: 'started',
 	endProp: 'ended',
+	timeProp: 'time',
 	everydayValue: 'Every day',
 	weekdayValues: 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
 	workdayValue: 'Workday',
@@ -193,6 +196,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Scheduled property',
 						desc: 'Date & time property. Cleared when a task is finished, set to a later time when it is interrupted.',
 						control: { type: 'text', key: 'scheduledProp', placeholder: d.scheduledProp },
+					},
+					{
+						name: 'Time property',
+						desc: 'Text property that holds a time of day, such as 18:00. Used like the scheduled time when the scheduled property is empty.',
+						control: { type: 'text', key: 'timeProp', placeholder: d.timeProp },
 					},
 					{
 						name: 'Start property',
