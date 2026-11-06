@@ -469,6 +469,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			start: pick(s.startProp, d.startProp),
 			end: pick(s.endProp, d.endProp),
 			time: pick(s.timeProp, d.timeProp),
+			skip: pick(s.skipProp, d.skipProp),
 			location: pick(s.locationProp, d.locationProp),
 		};
 	}

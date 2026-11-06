@@ -11,6 +11,7 @@ export interface TaskPropNames {
 	start: string;
 	end: string;
 	time: string;
+	skip: string;
 	location: string;
 }
 
@@ -26,6 +27,7 @@ export interface TaskProps {
 	start: Moment | null;
 	end: Moment | null;
 	time: number | null; // 予定時刻（0:00 からの分）
+	skipped: TaskDate | null;
 }
 
 export interface TaskContext {
@@ -83,6 +85,7 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 		start,
 		end: toTaskDate(fm[names.end])?.value ?? null,
 		time: toMinutes(fm[names.time]),
+		skipped: toTaskDate(fm[names.skip]),
 	};
 }
 
@@ -138,6 +141,8 @@ function matchesCycle(t: TaskProps, ctx: TaskContext): boolean {
 /** サイドバーに表示するか */
 export function isVisible(t: TaskProps, ctx: TaskContext): boolean {
 	if (isRunning(t)) return true;
+	// 今日スキップしたタスクは、実行中でなければ、ほかの条件より優先して隠す
+	if (t.skipped && scheduledDay(t.skipped, ctx).isSame(ctx.today, 'day')) return false;
 	if (t.scheduled) {
 		// 未来の予定は周期より優先して隠す。今日以前の予定は、終了して空になるまで表示する
 		return !scheduledDay(t.scheduled, ctx).isAfter(ctx.today, 'day');

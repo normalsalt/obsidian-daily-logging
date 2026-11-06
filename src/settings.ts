@@ -27,6 +27,8 @@ export interface DailyLoggingSettings {
 	endProp: string;
 	/** 予定時刻（HH:mm のテキスト）のプロパティ名 */
 	timeProp: string;
+	/** スキップ日時のプロパティ名 */
+	skipProp: string;
 	/** repeat の値の表記 */
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
@@ -78,6 +80,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	startProp: 'started',
 	endProp: 'ended',
 	timeProp: 'time',
+	skipProp: 'skipped',
 	everydayValue: 'Every day',
 	weekdayValues: 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
 	workdayValue: 'Workday',
@@ -218,6 +221,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Time property',
 						desc: 'Text property that holds a time of day, such as 18:00. Used like the scheduled time when the scheduled property is empty.',
 						control: { type: 'text', key: 'timeProp', placeholder: d.timeProp },
+					},
+					{
+						name: 'Skip property',
+						desc: 'Date & time property. If it is today, the task is hidden from the sidebar for the day, unless it is running.',
+						control: { type: 'text', key: 'skipProp', placeholder: d.skipProp },
 					},
 					{
 						name: 'Start property',
