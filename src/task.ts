@@ -1,5 +1,5 @@
 import { moment } from 'obsidian';
-import { logicalDate, resolvePlacement } from './time-slots';
+import { logicalDate, parseTime, resolvePlacement } from './time-slots';
 import type { TimeSlot } from './time-slots';
 
 export type Moment = ReturnType<typeof moment>;
@@ -33,6 +33,7 @@ export interface TaskContext {
 	boundary: number; // 1日の境界（分）
 	slots: TimeSlot[];
 	toPreviousDay: boolean;
+	dayEnd: number | null; // その日の終了時刻（0:00 からの分。未設定なら null）
 	everyday: string;
 	weekdays: string[]; // 月曜日から順に7つ
 	workday: string;
@@ -55,11 +56,7 @@ function toTaskDate(value: unknown): TaskDate | null {
 
 /** 「HH:mm」のテキストを 0:00 からの分にする。不正なら null */
 function toMinutes(value: unknown): number | null {
-	if (typeof value !== 'string') return null;
-	const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-	const h = Number(m?.[1]);
-	const min = Number(m?.[2]);
-	return m && h <= 23 && min <= 59 ? h * 60 + min : null;
+	return typeof value === 'string' ? parseTime(value) : null;
 }
 
 function toStringList(value: unknown): string[] {
@@ -169,6 +166,18 @@ export function groupOf(t: TaskProps, ctx: TaskContext): number {
 export function currentSlot(ctx: TaskContext, now: Moment): number | null {
 	const { slot } = resolvePlacement(now, ctx.slots, ctx.toPreviousDay);
 	return slot ? ctx.slots.indexOf(slot) : null;
+}
+
+/** 時間帯の終わり。最後の時間帯は、その日の終了時刻（なければ翌日の最初の時間帯） */
+export function slotEnd(ctx: TaskContext, index: number): Moment | null {
+	const slot = ctx.slots[index];
+	const first = ctx.slots[0];
+	if (!slot || !first) return null;
+	const next = ctx.slots[index + 1];
+	if (next) return ctx.today.clone().add(next.minutes, 'minutes');
+	let end = ctx.dayEnd ?? first.minutes;
+	if (end <= slot.minutes) end += 1440; // 最後の時間帯より前の時刻は、翌日の暦日
+	return ctx.today.clone().add(end, 'minutes');
 }
 
 function compareMoment(a: Moment | null, b: Moment | null): number {

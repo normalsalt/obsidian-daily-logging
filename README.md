@@ -29,6 +29,7 @@ For a note created from a template with [Templater](https://github.com/SilentVoi
 
 - **File extensions**: Only files with these extensions are logged (default: `md`).
 - **Time slots**: Each entry is added under the heading of its time slot. If the heading doesn't exist yet, it is created. Each slot is written on one line as `time | heading | tag`.
+- **End of the day**: When the last time slot ends. The task list shows the time left in the current time slot, and for the last slot it counts down to this time. If it is empty, it counts down to the first time slot of the next day.
 - **Early entries**: Entries before the first time slot go to the previous day's daily note, under the last slot. In the task list, this time is also used as the start of the day.
 
 ## Opening daily notes

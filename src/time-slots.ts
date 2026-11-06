@@ -20,6 +20,14 @@ export interface Inserted {
 
 const isBlank = (s: string | undefined): boolean => (s ?? '').trim() === '';
 
+/** 「H:mm」「HH:mm」を 0:00 からの分にする。不正なら null */
+export function parseTime(value: string): number | null {
+	const m = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+	const h = Number(m?.[1]);
+	const min = Number(m?.[2]);
+	return m && h <= 23 && min <= 59 ? h * 60 + min : null;
+}
+
 /** 「時刻 | 見出し | タグ」を1行ずつ読み、時刻順に並べて返す */
 export function parseTimeSlots(value: string): { slots: TimeSlot[]; errors: string[] } {
 	const slots: TimeSlot[] = [];

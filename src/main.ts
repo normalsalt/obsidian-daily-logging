@@ -20,6 +20,7 @@ import {
 	dayBoundary,
 	insertUnderHeading,
 	logicalDate,
+	parseTime,
 	parseTimeSlots,
 	resolvePlacement,
 } from './time-slots';
@@ -440,6 +441,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			boundary,
 			slots,
 			toPreviousDay: s.logToPreviousDay,
+			dayEnd: parseTime(s.dayEnd),
 			everyday: s.everydayValue.trim() || DEFAULT_SETTINGS.everydayValue,
 			weekdays:
 				parseWeekdays(s.weekdayValues) ?? parseWeekdays(DEFAULT_SETTINGS.weekdayValues) ?? [],

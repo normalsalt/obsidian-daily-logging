@@ -8,11 +8,13 @@ import {
 	compareTasks,
 	currentSlot,
 	effectiveScheduled,
+	formatDuration,
 	groupOf,
 	isRunning,
 	isVisible,
 	readTask,
 	scheduledDay,
+	slotEnd,
 } from './task';
 import type { TaskContext, TaskDate, TaskProps } from './task';
 
@@ -43,6 +45,9 @@ export class TaskView extends ItemView {
 
 	/** 表示したときの今の時間帯（強調するグループ） */
 	private shownSlot: number | null = null;
+
+	/** 今の時間帯の見出しの、残り時間を書く場所（見出しが出ていなければ null） */
+	private remainingEl: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: DailyLoggingPlugin) {
 		super(leaf);
@@ -114,7 +119,8 @@ export class TaskView extends ItemView {
 		});
 		this.registerEvent(resolved);
 
-		// 論理上の日付、今の時間帯、Daily notes が使えるかどうかが変わったときに描き直す
+		// 論理上の日付、今の時間帯、Daily notes が使えるかどうかが変わったときに描き直す。
+		// 残り時間は毎回書き換える（遅れが1分近くにならないよう、10秒ごとに確かめる）
 		this.registerInterval(
 			window.setInterval(() => {
 				const ctx = this.plugin.taskContext();
@@ -127,8 +133,10 @@ export class TaskView extends ItemView {
 					available !== this.shownAvailable
 				) {
 					this.render();
+				} else {
+					this.updateRemaining(ctx);
 				}
-			}, 60_000),
+			}, 10_000),
 		);
 	}
 
@@ -172,6 +180,7 @@ export class TaskView extends ItemView {
 		this.shownDay = ctx.today.format('YYYY-MM-DD');
 		this.shownAvailable = getDailyNotes(this.app) !== null;
 		this.shownSlot = currentSlot(ctx, moment());
+		this.remainingEl = null;
 		root.empty();
 
 		if (!this.shownAvailable) {
@@ -187,7 +196,11 @@ export class TaskView extends ItemView {
 		for (const group of groups) {
 			const section = root.createDiv({ cls: 'daily-logging-group' });
 			const heading = section.createEl('h4', { text: this.groupTitle(group, ctx) });
-			if (group === this.shownSlot) heading.addClass('is-current');
+			if (group === this.shownSlot) {
+				heading.addClass('is-current');
+				this.remainingEl = heading.createSpan({ cls: 'daily-logging-remaining' });
+				this.updateRemaining(ctx);
+			}
 			const list = section.createEl('ul');
 
 			entries
@@ -195,6 +208,13 @@ export class TaskView extends ItemView {
 				.sort(compareTasks)
 				.forEach((e) => this.renderTask(list, e, ctx));
 		}
+	}
+
+	/** 今の時間帯の残り時間を書き換える。終わりを過ぎていれば 00:00 */
+	private updateRemaining(ctx: TaskContext): void {
+		if (!this.remainingEl || this.shownSlot === null) return;
+		const end = slotEnd(ctx, this.shownSlot);
+		this.remainingEl.setText(end ? `${formatDuration(moment(), end)} left` : '');
 	}
 
 	private renderTask(list: HTMLElement, entry: TaskEntry, ctx: TaskContext): void {

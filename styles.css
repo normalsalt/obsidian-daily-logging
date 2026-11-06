@@ -8,6 +8,17 @@
 	font-size: var(--font-ui-small);
 }
 
+.daily-logging-tasks h4.is-current {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+}
+
+.daily-logging-remaining {
+	font-weight: var(--font-normal);
+	font-variant-numeric: tabular-nums;
+}
+
 .daily-logging-tasks ul {
 	list-style: none;
 	margin: 0;

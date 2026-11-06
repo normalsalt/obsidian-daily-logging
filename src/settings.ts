@@ -1,6 +1,6 @@
 import { PluginSettingTab } from 'obsidian';
 import type { App, SettingDefinitionItem } from 'obsidian';
-import { parseTimeSlots } from './time-slots';
+import { parseTime, parseTimeSlots } from './time-slots';
 import type DailyLoggingPlugin from './main';
 
 export interface DailyLoggingSettings {
@@ -16,6 +16,8 @@ export interface DailyLoggingSettings {
 	logToPreviousDay: boolean;
 	/** 「時刻 | 見出し | タグ」を1行に1つ */
 	timeSlots: string;
+	/** その日の終了時刻（HH:mm）。空なら翌日の最初の時間帯 */
+	dayEnd: string;
 
 	/** タスクのプロパティ名 */
 	cycleProp: string;
@@ -68,6 +70,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 		'17:00 | Evening routine | evening',
 		'21:00 | Night routine | night',
 	].join('\n'),
+	dayEnd: '',
 
 	cycleProp: 'repeat',
 	sectionProp: 'section',
@@ -174,6 +177,20 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 							key: 'timeSlots',
 							rows: 6,
 							validate: (value) => parseTimeSlots(value).errors.join(' '),
+						},
+					},
+					{
+						name: 'End of the day',
+						desc: 'When the last time slot ends, for the remaining time in the task list. Leave empty to use the first time slot of the next day.',
+						visible: headingsOn,
+						control: {
+							type: 'text',
+							key: 'dayEnd',
+							placeholder: '23:00',
+							validate: (value) =>
+								value.trim() === '' || parseTime(value) !== null
+									? ''
+									: 'Enter a time such as 23:00, or leave it empty.',
 						},
 					},
 				],
