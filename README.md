@@ -56,7 +56,7 @@ A task is shown when one of the following applies:
 
 A task scheduled for a later day is hidden until that day, even if it repeats today.
 
-Running tasks and the group of the current time slot are highlighted.
+Running tasks and the tasks in the current time slot are highlighted.
 
 To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in the settings. If the `scheduled` date of that note is today, today is a holiday. Otherwise, it is a workday. If you add an all-day event with that name to your calendar, its date is set when events are fetched (see [Calendar events](#calendar-events)). The holiday note itself isn't shown in the task list.
 

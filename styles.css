@@ -8,11 +8,6 @@
 	font-size: var(--font-ui-small);
 }
 
-.daily-logging-tasks h4.is-current {
-	color: var(--text-accent);
-	font-weight: var(--font-bold);
-}
-
 .daily-logging-tasks ul {
 	list-style: none;
 	margin: 0;
@@ -35,9 +30,13 @@
 	cursor: pointer;
 }
 
-.daily-logging-task.is-running .daily-logging-task-name {
-	color: var(--text-accent);
-	font-weight: var(--font-bold);
+/* 実行中のタスクと、今の時間帯のタスクの行に、薄いアクセント色の背景 */
+.daily-logging-task.is-running,
+.daily-logging-group:has(> h4.is-current) .daily-logging-task {
+	background-color: var(--background-modifier-active-hover);
+	border-radius: var(--radius-s);
+	padding-inline: var(--size-4-2);
+	margin-inline: calc(-1 * var(--size-4-2));
 }
 
 .daily-logging-task-meta {
