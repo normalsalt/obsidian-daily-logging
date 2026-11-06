@@ -61,12 +61,19 @@ function toScheduled(start: string): string | null {
 	return m.isValid() ? m.format(PROP_DATE_FORMAT) : null;
 }
 
-/** 本文の末尾に説明を追記する。同じ説明がすでに本文にあれば何もしない（毎日取得しても重ならないように） */
+/**
+ * 本文の最後の行のすぐ下に、空行を挟まずに説明を追記する。末尾の空行は、説明の後ろに残す。
+ * 同じ説明がすでに本文にあれば何もしない（毎日取得しても重ならないように）
+ */
 function appendDescription(data: string, description: string): string {
 	const text = description.replace(/\r\n?/g, '\n').trim();
 	if (text === '' || data.includes(text)) return data;
-	const sep = data === '' || data.endsWith('\n\n') ? '' : data.endsWith('\n') ? '\n' : '\n\n';
-	return `${data}${sep}${text}\n`;
+
+	// 最後の内容の行の改行から後（末尾の空行を含む）
+	const m = /\n(?:[ \t]*\n)*[ \t]*$/.exec(data);
+	const head = m ? data.slice(0, m.index) : data;
+	const tail = m ? data.slice(m.index) : '\n';
+	return head === '' ? `${text}${tail}` : `${head}\n${text}${tail}`;
 }
 
 /**
