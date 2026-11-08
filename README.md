@@ -82,7 +82,7 @@ In the **Calendar** settings, enter the web app's URL and choose the secret that
 
 Fetch events with the **Fetch calendar events** command, or with the refresh button at the top of the task list.
 
-For each event, a note named after the event is used at the top level of the vault. If it doesn't exist, it is created. Its `scheduled` and `location` properties are overwritten with the event's start and location each time. The event's description is added to the end of the note, unless the note already contains it. The description goes on the line right after the last line of the note, without a blank line, and above any blank lines at the end. For an all-day event that started on an earlier day, `scheduled` is set to today.
+For each event, a note named after the event is used at the top level of the vault. If it doesn't exist, it is created. Its `scheduled` and `location` properties are overwritten with the event's start and location each time. The event's description is added to the end of the note, unless the note already contains it. The description goes on the line right after the last line of the note, without a blank line, and above any blank lines at the end. Every two spaces at the start of a line become a tab. For an all-day event that started on an earlier day, `scheduled` is set to today.
 
 ## Notes
 

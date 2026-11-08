@@ -63,11 +63,18 @@ function toScheduled(start: string): string | null {
 
 /**
  * 本文の最後の行のすぐ下に、空行を挟まずに説明を追記する。末尾の空行は、説明の後ろに残す。
+ * 行頭のスペースは2つごとにタブにする（余った1つはスペースにする）。
+ * Google カレンダーの説明は HTML 由来で、&nbsp; がノーブレークスペースで入るので、それも数える。
  * 同じ説明がすでに本文にあれば何もしない（毎日取得しても重ならないように）
  */
 function appendDescription(data: string, description: string): string {
-	const text = description.replace(/\r\n?/g, '\n').trim();
-	if (text === '' || data.includes(text)) return data;
+	const raw = description.replace(/\r\n?/g, '\n').trim();
+	const text = raw.replace(
+		/^[ \u00a0]+/gm,
+		(s) => '\t'.repeat(Math.floor(s.length / 2)) + (s.length % 2 ? ' ' : ''),
+	);
+	// タブにする前に追記した説明も、同じものとみなす
+	if (text === '' || data.includes(text) || data.includes(raw)) return data;
 
 	// 最後の内容の行の改行から後（末尾の空行を含む）
 	const m = /\n(?:[ \t]*\n)*[ \t]*$/.exec(data);
