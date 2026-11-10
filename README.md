@@ -64,6 +64,8 @@ A task whose `skipped` date is today is hidden for the day, before any of the ru
 
 Running tasks and the tasks in the current time slot are highlighted.
 
+If a task's note has unchecked checkboxes under the **Title heading** (default: `Tasks`), the list shows the first one instead of the file name, even if it is nested under another item.
+
 To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in the settings. If the `scheduled` date of that note is today, today is a holiday. Otherwise, it is a workday. If you add an all-day event with that name to your calendar, its date is set when events are fetched (see [Calendar events](#calendar-events)). The holiday note itself isn't shown in the task list.
 
 | Action    | What it does                                                                                       |

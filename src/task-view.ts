@@ -1,4 +1,4 @@
-import { ItemView, Keymap, debounce, moment, setIcon } from 'obsidian';
+import { ItemView, Keymap, debounce, getFrontMatterInfo, moment, setIcon } from 'obsidian';
 import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type DailyLoggingPlugin from './main';
 import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
@@ -17,6 +17,7 @@ import {
 	slotEnd,
 } from './task';
 import type { TaskContext, TaskDate, TaskProps } from './task';
+import { firstOpenItem } from './time-slots';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
 
@@ -48,6 +49,12 @@ export class TaskView extends ItemView {
 
 	/** 今の時間帯の見出しの、残り時間を書く場所（見出しが出ていなければ null） */
 	private remainingEl: HTMLElement | null = null;
+
+	/** ノートから読んだ表示名（パスごと。読んだときの更新日時と見出し名が同じ間だけ使う） */
+	private titles = new Map<string, { mtime: number; heading: string; title: string | null }>();
+
+	/** 表示名を読んでいるパス（同じノートを重ねて読まない） */
+	private loadingTitles = new Set<string>();
 
 	constructor(leaf: WorkspaceLeaf, plugin: DailyLoggingPlugin) {
 		super(leaf);
@@ -155,13 +162,41 @@ export class TaskView extends ItemView {
 			if (!props || !isVisible(props, ctx)) continue;
 			entries.push({
 				file,
-				name: file.basename,
+				name: this.titleOf(file) ?? file.basename,
 				props,
 				scheduled: effectiveScheduled(props, ctx),
 				group: groupOf(props, ctx),
 			});
 		}
 		return entries;
+	}
+
+	/**
+	 * タスクの表示名。読んだものがなければ、読み始めて、読み終えたら描き直す。
+	 * 読み終えるまでは前に読んだ表示名（なければ null で、ファイル名になる）を返す
+	 */
+	private titleOf(file: TFile): string | null {
+		const heading = this.plugin.settings.titleHeading.trim();
+		if (heading === '') return null;
+		const cached = this.titles.get(file.path);
+		if (cached?.mtime === file.stat.mtime && cached.heading === heading) return cached.title;
+
+		if (!this.loadingTitles.has(file.path)) {
+			this.loadingTitles.add(file.path);
+			this.app.vault
+				.cachedRead(file)
+				.then((data) => {
+					// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
+					const body = data.slice(getFrontMatterInfo(data).contentStart);
+					const title = firstOpenItem(body, heading);
+					const changed = (cached?.title ?? null) !== title;
+					this.titles.set(file.path, { mtime: file.stat.mtime, heading, title });
+					if (changed) this.render();
+				})
+				.catch(reportError)
+				.finally(() => this.loadingTitles.delete(file.path));
+		}
+		return cached?.title ?? null;
 	}
 
 	private groupTitle(group: number, ctx: TaskContext): string {

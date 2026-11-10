@@ -116,18 +116,24 @@ function findHeadings(lines: string[]): HeadingLine[] {
 	return result;
 }
 
-/**
- * 見出し（レベルは問わない）の節から、未チェックのチェックボックスを子の行ごと取り出し、1段インデントして返す。
- * チェック済みや普通の項目、本文は、子ごと飛ばす
- */
-export function openActions(data: string, heading: string): string[] {
+/** 見出し（レベルは問わない）の節の行。次の同レベル以上の見出しまで。見出しがなければ空 */
+function sectionLines(data: string, heading: string): string[] {
 	const lines = data.split('\n');
 	const headings = findHeadings(lines);
 	const target = headings.find((h) => h.text === heading);
 	if (!target) return [];
 	const next = headings.find((h) => h.index > target.index && h.level <= target.level);
-	const section = lines.slice(target.index + 1, next ? next.index : lines.length);
+	return lines.slice(target.index + 1, next ? next.index : lines.length);
+}
 
+const OPEN_CHECKBOX = /^[ \t]*[-*+] \[ \]/;
+
+/**
+ * 見出しの節から、未チェックのチェックボックスを子の行ごと取り出し、1段インデントして返す。
+ * チェック済みや普通の項目、本文は、子ごと飛ばす
+ */
+export function openActions(data: string, heading: string): string[] {
+	const section = sectionLines(data, heading);
 	const result: string[] = [];
 	let base = -1; // 直前の項目のインデントの長さ
 	let copying = false;
@@ -140,10 +146,20 @@ export function openActions(data: string, heading: string): string[] {
 			continue;
 		}
 		base = indent;
-		copying = /^[ \t]*[-*+] \[ \]/.test(line);
+		copying = OPEN_CHECKBOX.test(line);
 		if (copying) result.push(`\t${line.slice(base)}`);
 	}
 	return result;
+}
+
+/** 見出しの節で、一番上の未チェックのチェックボックスの文字列（インデントは問わない）。なければ null */
+export function firstOpenItem(data: string, heading: string): string | null {
+	for (const line of sectionLines(data, heading)) {
+		const m = OPEN_CHECKBOX.exec(line);
+		const text = m ? line.slice(m[0].length).trim() : '';
+		if (text !== '') return text;
+	}
+	return null;
 }
 
 /** 「## 見出し」の節の末尾に1行追加する。見出しがなければ作る */
