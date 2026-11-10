@@ -19,6 +19,8 @@ import type { LoggedLine } from './daily-notes';
 import {
 	dayBoundary,
 	insertUnderHeading,
+	isBlank,
+	isEmptyItem,
 	logicalDate,
 	parseTime,
 	parseTimeSlots,
@@ -205,7 +207,11 @@ export default class DailyLoggingPlugin extends Plugin {
 		const cursor = editor.getCursor();
 		if (cursor.line !== 0 || cursor.ch !== 0) return; // 先頭でなければ、位置が決まっている
 
-		const line = editor.lastLine();
+		// 末尾の空行の上が空の箇条書きなら、その行末に置く
+		let line = editor.lastLine();
+		let item = line;
+		while (item > 0 && isBlank(editor.getLine(item))) item--;
+		if (isEmptyItem(editor.getLine(item))) line = item;
 		const pos = { line, ch: editor.getLine(line).length };
 		editor.setCursor(pos);
 		editor.scrollIntoView({ from: pos, to: pos }, true);
@@ -243,13 +249,14 @@ export default class DailyLoggingPlugin extends Plugin {
 			if (isDailyNote(file, dn)) return null; // デイリーノート自身は対象外
 			if (!this.app.vault.getFileByPath(file.path)) return null; // 処理を待つ間に削除された
 
-			const { useHeadings, headingRule, logToPreviousDay, timeSlots } = this.settings;
+			const { useHeadings, headingRule, logToPreviousDay, timeSlots, childBullet } = this.settings;
 			const slots = useHeadings ? parseTimeSlots(timeSlots).slots : [];
 			const { date, slot } = resolvePlacement(at, slots, logToPreviousDay);
 
 			return updateDailyNote(this.app, dn, date, (data, dailyNote) => {
 				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
-				const line = `- ${at.format('HH:mm')} ${link}${suffix}`;
+				// 子のバレットは2行目として一緒に入れる（返す行番号は記録の行のまま）
+				const line = `- ${at.format('HH:mm')} ${link}${suffix}${childBullet ? '\n\t- ' : ''}`;
 				return slot
 					? insertUnderHeading(data, slot, slots, line, headingRule)
 					: appendLine(data, line);
@@ -324,7 +331,10 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.showLoggedLine(await logged);
 	}
 
-	/** 設定がオンなら、デイリーノートを前に出し（開いていなければ新しいタブで開く）、追記した行の末尾にカーソルを置く */
+	/**
+	 * 設定がオンなら、デイリーノートを前に出し（開いていなければ新しいタブで開く）、
+	 * 追記した行の下のバレット（なければ追記した行の末尾）にカーソルを置く
+	 */
 	private async showLoggedLine(logged: LoggedLine | null): Promise<void> {
 		if (!logged || !this.settings.openDailyNote) return;
 		const { workspace } = this.app;
@@ -343,7 +353,12 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!(leaf.view instanceof MarkdownView)) return;
 		const editor = leaf.view.editor;
 		if (!(await this.waitForLine(editor, logged))) return;
-		const pos = { line: logged.line, ch: logged.text.length };
+		// 下に空のバレットがあれば、そこに置く
+		const below = logged.line + 1;
+		const pos =
+			this.settings.childBullet && below < editor.lineCount() && isEmptyItem(editor.getLine(below))
+				? { line: below, ch: editor.getLine(below).length }
+				: { line: logged.line, ch: logged.text.length };
 		editor.setCursor(pos);
 		editor.scrollIntoView({ from: pos, to: pos }, true);
 		editor.focus();

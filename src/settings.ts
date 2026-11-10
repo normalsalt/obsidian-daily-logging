@@ -6,6 +6,8 @@ import type DailyLoggingPlugin from './main';
 export interface DailyLoggingSettings {
 	/** 記録する拡張子（カンマ区切り） */
 	extensions: string;
+	/** 記録した行の下に、1段インデントした空のバレットを入れる */
+	childBullet: boolean;
 	/** デイリーノートを開いたら、カーソルをファイルの末尾に置く */
 	cursorToEnd: boolean;
 	/** 時間帯の見出しの下に追記する */
@@ -61,6 +63,7 @@ export interface DailyLoggingSettings {
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	extensions: 'md',
+	childBullet: true,
 	cursorToEnd: true,
 	useHeadings: true,
 	headingRule: true,
@@ -144,6 +147,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				name: 'File extensions',
 				desc: 'Comma-separated list of file extensions to log when a file is created, for example: md, canvas, base',
 				control: { type: 'text', key: 'extensions', placeholder: 'md' },
+			},
+			{
+				name: 'Add a bullet under each entry',
+				desc: 'Add an empty bullet, indented one level, on the line after each entry. After a task is logged, the cursor moves to it. If you leave it empty, it is removed when the next entry is added.',
+				control: { type: 'toggle', key: 'childBullet' },
 			},
 			{
 				name: 'Move the cursor to the end of daily notes',
@@ -281,7 +289,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Show the logged line',
-						desc: 'After you start, interrupt, or end a task, open the daily note and move the cursor to the new line.',
+						desc: 'After you start, interrupt, or end a task, open the daily note and move the cursor to the new line, or to the bullet under it.',
 						control: { type: 'toggle', key: 'openDailyNote' },
 					},
 				],

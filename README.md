@@ -32,11 +32,11 @@ For a note created from a template with [Templater](https://github.com/SilentVoi
 - **End of the day**: When the last time slot ends. The task list shows the time left in the current time slot, and for the last slot it counts down to this time. If it is empty, it counts down to the first time slot of the next day.
 - **Early entries**: Entries before the first time slot go to the previous day's daily note, under the last slot. In the task list, this time is also used as the start of the day.
 
-If the lines just above a new entry are empty list items, such as `- ` with nothing after it, they are removed.
+Under each entry, an empty bullet indented one level is added, so you can write a note about it. You can turn this off with **Add a bullet under each entry** in the settings. If the lines just above a new entry are empty list items, such as `- ` with nothing after it, they are removed.
 
 ## Opening daily notes
 
-When you open a daily note, the cursor moves to the end of the note, so you can start writing right away. It doesn't move when you only switch tabs, or when a link to a heading or block opened the note. You can turn this off with **Move the cursor to the end of daily notes** in the settings.
+When you open a daily note, the cursor moves to the end of the note, so you can start writing right away. If the note ends with an empty bullet, the cursor goes to that bullet. It doesn't move when you only switch tabs, or when a link to a heading or block opened the note. You can turn this off with **Move the cursor to the end of daily notes** in the settings.
 
 ## Task list
 
@@ -74,7 +74,7 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 
 The **Start task**, **End task**, and **Interrupt task** commands work on the file that is currently open. You can assign hotkeys to them.
 
-After you start, interrupt, or end a task, the daily note opens in a new tab, with the cursor on the new line. If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings.
+After you start, interrupt, or end a task, the daily note opens in a new tab, with the cursor on the bullet under the new line (or on the new line, if the bullet is turned off). If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings.
 
 ## Calendar events
 
