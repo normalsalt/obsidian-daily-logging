@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, Plugin, TFile, debounce, moment } from 'obsidian';
+import { MarkdownView, Notice, Plugin, TFile, debounce, getFrontMatterInfo, moment } from 'obsidian';
 import type { Editor, Events, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
@@ -22,6 +22,7 @@ import {
 	isBlank,
 	isEmptyItem,
 	logicalDate,
+	openActions,
 	parseTime,
 	parseTimeSlots,
 	resolvePlacement,
@@ -235,9 +236,15 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/**
 	 * デイリーノートの、時刻に合う場所に1行記録する（キューで順番に処理）。
+	 * その下に children を入れる（なければ、設定がオンなら空のバレット）。
 	 * 追記した場所を返す。記録しなかったとき、失敗したときは null
 	 */
-	private logEntry(file: TFile, at: Moment, suffix = ''): Promise<LoggedLine | null> {
+	private logEntry(
+		file: TFile,
+		at: Moment,
+		suffix = '',
+		children: string[] = [],
+	): Promise<LoggedLine | null> {
 		return this.enqueue(async () => {
 			const dn = getDailyNotes(this.app);
 			if (!dn) {
@@ -255,8 +262,9 @@ export default class DailyLoggingPlugin extends Plugin {
 
 			return updateDailyNote(this.app, dn, date, (data, dailyNote) => {
 				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
-				// 子のバレットは2行目として一緒に入れる（返す行番号は記録の行のまま）
-				const line = `- ${at.format('HH:mm')} ${link}${suffix}${childBullet ? '\n\t- ' : ''}`;
+				// 子の行は2行目から一緒に入れる（返す行番号は記録の行のまま）
+				const below = children.length > 0 ? children : childBullet ? ['\t- '] : [];
+				const line = [`- ${at.format('HH:mm')} ${link}${suffix}`, ...below].join('\n');
 				return slot
 					? insertUnderHeading(data, slot, slots, line, headingRule)
 					: appendLine(data, line);
@@ -285,9 +293,19 @@ export default class DailyLoggingPlugin extends Plugin {
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
 		});
-		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`);
+		const actions = await this.readActions(file);
+		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, actions);
 		await updated;
-		await this.showLoggedLine(await logged);
+		await this.showLoggedLine(await logged, actions.length > 0 || this.settings.childBullet);
+	}
+
+	/** タスクのノートの、アクションの見出しの下にある未チェックのチェックボックス（1段インデント済み） */
+	private async readActions(file: TFile): Promise<string[]> {
+		const heading = this.settings.actionsHeading.trim();
+		if (heading === '') return [];
+		const data = await this.app.vault.read(file);
+		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
+		return openActions(data.slice(getFrontMatterInfo(data).contentStart), heading);
 	}
 
 	/** タスクを終了する。予定日時は値だけ空にする */
@@ -328,14 +346,14 @@ export default class DailyLoggingPlugin extends Plugin {
 		const duration = before.start ? ` (${formatDuration(before.start, now)})` : '';
 		const logged = this.logEntry(file, now, ` ${label}${duration}`);
 		await updated;
-		await this.showLoggedLine(await logged);
+		await this.showLoggedLine(await logged, this.settings.childBullet);
 	}
 
 	/**
 	 * 設定がオンなら、デイリーノートを前に出し（開いていなければ新しいタブで開く）、
-	 * 追記した行の下のバレット（なければ追記した行の末尾）にカーソルを置く
+	 * 追記した行の下の行（below が false なら追記した行）の末尾にカーソルを置く
 	 */
-	private async showLoggedLine(logged: LoggedLine | null): Promise<void> {
+	private async showLoggedLine(logged: LoggedLine | null, below: boolean): Promise<void> {
 		if (!logged || !this.settings.openDailyNote) return;
 		const { workspace } = this.app;
 
@@ -353,11 +371,11 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!(leaf.view instanceof MarkdownView)) return;
 		const editor = leaf.view.editor;
 		if (!(await this.waitForLine(editor, logged))) return;
-		// 下に空のバレットがあれば、そこに置く
-		const below = logged.line + 1;
+		// 下に入れたバレットやアクションがあれば、その最初の行に置く
+		const next = logged.line + 1;
 		const pos =
-			this.settings.childBullet && below < editor.lineCount() && isEmptyItem(editor.getLine(below))
-				? { line: below, ch: editor.getLine(below).length }
+			below && next < editor.lineCount()
+				? { line: next, ch: editor.getLine(next).length }
 				: { line: logged.line, ch: logged.text.length };
 		editor.setCursor(pos);
 		editor.scrollIntoView({ from: pos, to: pos }, true);

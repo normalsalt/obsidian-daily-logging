@@ -42,6 +42,8 @@ export interface DailyLoggingSettings {
 	holidayNote: string;
 	/** 中断してから再開するまでの見込み（分） */
 	resumeMinutes: string;
+	/** 開始時に、タスクのノートのこの見出しの下の未チェックのチェックボックスをコピーする。空ならしない */
+	actionsHeading: string;
 	/** タスクを記録したら、デイリーノートの追記した行を表示する */
 	openDailyNote: boolean;
 
@@ -90,6 +92,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	holidayValue: 'Holiday',
 	holidayNote: '',
 	resumeMinutes: '15',
+	actionsHeading: 'Actions',
 	openDailyNote: true,
 
 	startLabel: 'started',
@@ -286,6 +289,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 							validate: (value) =>
 								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
 						},
+					},
+					{
+						name: 'Actions heading',
+						desc: "When you start a task, the unchecked checkboxes under this heading in the task's note are copied under the entry, instead of an empty bullet. Leave empty to turn off.",
+						control: { type: 'text', key: 'actionsHeading', placeholder: d.actionsHeading },
 					},
 					{
 						name: 'Show the logged line',

@@ -116,6 +116,36 @@ function findHeadings(lines: string[]): HeadingLine[] {
 	return result;
 }
 
+/**
+ * 見出し（レベルは問わない）の節から、未チェックのチェックボックスを子の行ごと取り出し、1段インデントして返す。
+ * チェック済みや普通の項目、本文は、子ごと飛ばす
+ */
+export function openActions(data: string, heading: string): string[] {
+	const lines = data.split('\n');
+	const headings = findHeadings(lines);
+	const target = headings.find((h) => h.text === heading);
+	if (!target) return [];
+	const next = headings.find((h) => h.index > target.index && h.level <= target.level);
+	const section = lines.slice(target.index + 1, next ? next.index : lines.length);
+
+	const result: string[] = [];
+	let base = -1; // 直前の項目のインデントの長さ
+	let copying = false;
+	for (const line of section) {
+		if (isBlank(line)) continue;
+		const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
+		// 直前の項目より深い行はその子
+		if (base >= 0 && indent > base) {
+			if (copying) result.push(`\t${line.slice(base)}`);
+			continue;
+		}
+		base = indent;
+		copying = /^[ \t]*[-*+] \[ \]/.test(line);
+		if (copying) result.push(`\t${line.slice(base)}`);
+	}
+	return result;
+}
+
 /** 「## 見出し」の節の末尾に1行追加する。見出しがなければ作る */
 export function insertUnderHeading(
 	data: string,
