@@ -18,7 +18,13 @@ export interface Inserted {
 	line: number; // 追記した行の番号（0から）
 }
 
-const isBlank = (s: string | undefined): boolean => (s ?? '').trim() === '';
+export const isBlank = (s: string | undefined): boolean => (s ?? '').trim() === '';
+
+/** 中身のない箇条書き（「- 」など、記号とスペースだけ） */
+export const isEmptyItem = (s: string | undefined): boolean => /^[ \t]*[-*+][ \t]*$/.test(s ?? '');
+
+/** 追記する位置の上で詰める行（空行と空の箇条書き） */
+const isSpace = (s: string | undefined): boolean => isBlank(s) || isEmptyItem(s);
 
 /** 「H:mm」「HH:mm」を 0:00 からの分にする。不正なら null */
 export function parseTime(value: string): number | null {
@@ -122,28 +128,30 @@ export function insertUnderHeading(
 	const headings = findHeadings(lines);
 	const block = withRule ? [`## ${slot.heading}`, '---', line] : [`## ${slot.heading}`, line];
 
-	// 見出しがある場合：次の同レベル以上の見出しの直前（末尾の空行は詰める）
+	// 見出しがある場合：次の同レベル以上の見出しの直前（末尾の空行は詰める）。
+	// 末尾の空の箇条書きは消し、空行は追記した行の後ろに残す
 	const target = headings.find((h) => h.level === 2 && h.text === slot.heading);
 	if (target) {
 		const next = headings.find((h) => h.index > target.index && h.level <= 2);
-		let end = next ? next.index : lines.length;
-		while (end > target.index + 1 && isBlank(lines[end - 1])) end--;
-		lines.splice(end, 0, line);
+		const stop = next ? next.index : lines.length;
+		let end = stop;
+		while (end > target.index + 1 && isSpace(lines[end - 1])) end--;
+		lines.splice(end, stop - end, line, ...lines.slice(end, stop).filter(isBlank));
 		return { data: lines.join('\n'), line: end };
 	}
 
 	// 見出しがない場合：後の時間帯の見出しがあればその前に、なければ末尾に作る。
-	// 前後に空行は入れない（直前の空行も詰める）
+	// 前後に空行は入れない（直前の空行と空の箇条書きも詰める）
 	const later = new Set(slots.slice(slots.indexOf(slot) + 1).map((s) => s.heading));
 	const laterHeading = headings.find((h) => h.level === 2 && later.has(h.text));
 	if (laterHeading) {
 		let start = laterHeading.index;
-		while (start > 0 && isBlank(lines[start - 1])) start--;
+		while (start > 0 && isSpace(lines[start - 1])) start--;
 		lines.splice(start, laterHeading.index - start, ...block);
 		return { data: lines.join('\n'), line: start + block.length - 1 };
 	}
 
-	while (lines.length > 0 && isBlank(lines[lines.length - 1])) lines.pop();
+	while (lines.length > 0 && isSpace(lines[lines.length - 1])) lines.pop();
 	const start = lines.length;
 	lines.push(...block, '');
 	return { data: lines.join('\n'), line: start + block.length - 1 };

@@ -32,6 +32,8 @@ For a note created from a template with [Templater](https://github.com/SilentVoi
 - **End of the day**: When the last time slot ends. The task list shows the time left in the current time slot, and for the last slot it counts down to this time. If it is empty, it counts down to the first time slot of the next day.
 - **Early entries**: Entries before the first time slot go to the previous day's daily note, under the last slot. In the task list, this time is also used as the start of the day.
 
+If the lines just above a new entry are empty list items, such as `- ` with nothing after it, they are removed.
+
 ## Opening daily notes
 
 When you open a daily note, the cursor moves to the end of the note, so you can start writing right away. It doesn't move when you only switch tabs, or when a link to a heading or block opened the note. You can turn this off with **Move the cursor to the end of daily notes** in the settings.

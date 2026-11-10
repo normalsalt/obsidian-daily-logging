@@ -1,5 +1,6 @@
 import { Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
 import type { App } from 'obsidian';
+import { isBlank, isEmptyItem } from './time-slots';
 import type { Inserted } from './time-slots';
 
 type Moment = ReturnType<typeof moment>;
@@ -118,10 +119,16 @@ export async function updateDailyNote(
 	return { file: dailyNote, line, text };
 }
 
-/** 末尾に1行追記する */
+/** 末尾に1行追記する。末尾に続く空の箇条書きは消す（空行は残す） */
 export function appendLine(data: string, line: string): Inserted {
-	const sep = data === '' || data.endsWith('\n') ? '' : '\n';
-	const before = `${data}${sep}`;
+	const lines = data.split('\n');
+	let start = lines.length;
+	while (start > 0 && (isBlank(lines[start - 1]) || isEmptyItem(lines[start - 1]))) start--;
+	lines.splice(start, lines.length - start, ...lines.slice(start).filter((l) => !isEmptyItem(l)));
+	const trimmed = lines.join('\n');
+
+	const sep = trimmed === '' || trimmed.endsWith('\n') ? '' : '\n';
+	const before = `${trimmed}${sep}`;
 	return { data: `${before}${line}\n`, line: before.split('\n').length - 1 };
 }
 
