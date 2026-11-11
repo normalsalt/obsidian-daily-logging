@@ -152,11 +152,38 @@ export function openActions(data: string, heading: string): string[] {
 	return result;
 }
 
+/** Markdown の記法を外して、見える文字だけにする（タスク一覧の表示名用）。タグはそのまま */
+export function plainText(md: string): string {
+	return (
+		md
+			// 埋め込みと画像は消す
+			.replace(/!\[\[[^\]]*\]\]/g, '')
+			.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+			// ウィキリンクは別名、なければリンク先
+			.replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, '$1')
+			.replace(/\[\[([^\]]*)\]\]/g, '$1')
+			// 脚注は消し、リンクは表示する文字、自動リンクは URL
+			.replace(/\[\^[^\]]*\]/g, '')
+			.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+			.replace(/<(https?:\/\/[^>]+)>/g, '$1')
+			// HTML タグは消す
+			.replace(/<\/?[A-Za-z][^>]*>/g, '')
+			// コード、太字、取り消し線、ハイライト、斜体は中身だけ
+			.replace(/`([^`]*)`/g, '$1')
+			.replace(/(\*\*|~~|==)(.+?)\1/g, '$2')
+			.replace(/\*([^*]+)\*/g, '$1')
+			// _ は単語の途中（snake_case）を壊さないよう、前後が英数字でないときだけ
+			.replace(/(^|[^A-Za-z0-9])(__?)([^_]+?)\2(?![A-Za-z0-9])/g, '$1$3')
+			.replace(/\s+/g, ' ')
+			.trim()
+	);
+}
+
 /** 見出しの節で、一番上の未チェックのチェックボックスの文字列（インデントは問わない）。なければ null */
 export function firstOpenItem(data: string, heading: string): string | null {
 	for (const line of sectionLines(data, heading)) {
 		const m = OPEN_CHECKBOX.exec(line);
-		const text = m ? line.slice(m[0].length).trim() : '';
+		const text = m ? plainText(line.slice(m[0].length)) : '';
 		if (text !== '') return text;
 	}
 	return null;
