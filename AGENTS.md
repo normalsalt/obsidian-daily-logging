@@ -12,7 +12,7 @@
   4. `obsidian dev:errors clear` と `obsidian dev:console clear`
   5. `obsidian plugin:reload id=daily-logging`
   6. `obsidian dev:errors` と `obsidian dev:console level=error` で、エラーが出ていないか見る
-- `npm run dev` は監視モード。ユーザーが別のターミナルで動かすので、実行しない
+- `npm run dev`（監視モード）は使わない。`main.js` は手順 2 の `npm run build` で作る（ソースマップは付かない）
 - 読み込みのエラーまでは上の手順で確かめる。操作しての動作確認はユーザーが行うので、変更ごとに確認手順を短く示す
 - 実行してよいコマンド、確認が必要なコマンド、禁止するコマンドは `.claude/settings.json` を参照
 - そこにないコマンドを実行するときは、`.claude/settings.json` に追加するかどうかもユーザーに確認する
