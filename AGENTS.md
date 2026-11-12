@@ -68,5 +68,12 @@
 
 - 変更はできるだけ細かい単位でコミットする。1コミットで1つの目的にする
 - コミットする前に `git diff` を見せて、ユーザーの確認を取る
-- push、タグ付け、リリース（`npm version`、`gh release`）はユーザーが行う
+- push とリリースは、ユーザーが頼んだときだけ行う。リリースの手順:
+  1. 未コミットの変更がなく、`master` にいることを確かめる
+  2. 前のタグからのコミットを示し、バージョン（patch / minor / major）を決める（ユーザーが指定していればそれ）
+  3. `npm version <patch|minor|major>`（package.json、package-lock.json、manifest.json、versions.json を更新し、コミットとタグを作る）
+  4. `git push` と `git push origin <version>`
+  5. `gh run list --workflow=release.yml --limit 1` で実行を見つけ、`gh run watch <id>` で終わるまで待つ
+  6. `gh release view <version>` で、下書きに `main.js`、`manifest.json`、`styles.css` があるか確かめる。欠けていたら公開せず、ユーザーに知らせる
+  7. `gh release edit <version> --draft=false` で公開する
 - タグには `v` を付けない（`.npmrc` に `tag-version-prefix=""` を設定済み）。`release.yml` はリリースを下書きで作るので、公開するには `gh release edit <version> --draft=false` が必要

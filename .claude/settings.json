@@ -13,17 +13,28 @@
 			"Bash(obsidian dev:console level=error)",
 			"Bash(gh release view *)",
 			"Bash(gh release list)",
-			"Bash(gh release list *)"
+			"Bash(gh release list *)",
+			"Bash(gh run list *)",
+			"Bash(gh run watch *)"
 		],
-		"ask": ["Bash(git commit *)"],
+		"ask": [
+			"Bash(git commit *)",
+			"Bash(git push)",
+			"Bash(git push origin *)",
+			"Bash(npm version patch)",
+			"Bash(npm version minor)",
+			"Bash(npm version major)",
+			"Bash(gh release edit * --draft=false)"
+		],
 		"deny": [
-			"Bash(git push *)",
+			"Bash(git push --force*)",
+			"Bash(git push -f*)",
+			"Bash(git push * --force*)",
+			"Bash(git push * -f*)",
 			"Bash(git tag *)",
 			"Bash(git reset --hard *)",
-			"Bash(npm version *)",
 			"Bash(npm audit fix *)",
 			"Bash(gh release create *)",
-			"Bash(gh release edit *)",
 			"Bash(gh release delete *)",
 			"Bash(gh release delete-asset *)",
 			"Bash(gh release upload *)",
