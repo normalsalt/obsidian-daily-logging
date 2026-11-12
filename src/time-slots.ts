@@ -132,7 +132,7 @@ const OPEN_CHECKBOX = /^[ \t]*[-*+] \[ \]/;
  * 見出しの節から、未チェックのチェックボックスを子の行ごと取り出し、1段インデントして返す。
  * チェック済みや普通の項目、本文は、子ごと飛ばす
  */
-export function openActions(data: string, heading: string): string[] {
+export function openSteps(data: string, heading: string): string[] {
 	const section = sectionLines(data, heading);
 	const result: string[] = [];
 	let base = -1; // 直前の項目のインデントの長さ

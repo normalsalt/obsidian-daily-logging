@@ -74,7 +74,7 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 | End       | Sets `ended` and logs it with the time spent. Clears `scheduled`.                                  |
 | Interrupt | Sets `ended` and logs it with the time spent. Sets `scheduled` to 15 minutes later, so the task stays in the list. |
 
-When you start a task, the unchecked checkboxes under the **Actions heading** of the task's note (default: `Actions`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines.
+When you start a task, the unchecked checkboxes under the **Steps heading** of the task's note (default: `Steps`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines.
 
 The **Start task**, **End task**, and **Interrupt task** commands work on the file that is currently open. You can assign hotkeys to them.
 

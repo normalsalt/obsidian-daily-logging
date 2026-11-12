@@ -45,7 +45,7 @@ export interface DailyLoggingSettings {
 	/** タスク一覧で、この見出しの下の一番上の未チェックのチェックボックスを、ファイル名の代わりに出す。空ならしない */
 	titleHeading: string;
 	/** 開始時に、タスクのノートのこの見出しの下の未チェックのチェックボックスをコピーする。空ならしない */
-	actionsHeading: string;
+	stepsHeading: string;
 	/** タスクを記録したら、デイリーノートの追記した行を表示する */
 	openDailyNote: boolean;
 
@@ -95,7 +95,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	holidayNote: '',
 	resumeMinutes: '15',
 	titleHeading: 'Tasks',
-	actionsHeading: 'Actions',
+	stepsHeading: 'Steps',
 	openDailyNote: true,
 
 	startLabel: 'started',
@@ -299,9 +299,9 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						control: { type: 'text', key: 'titleHeading', placeholder: d.titleHeading },
 					},
 					{
-						name: 'Actions heading',
+						name: 'Steps heading',
 						desc: "When you start a task, the unchecked checkboxes under this heading in the task's note are copied under the entry, instead of an empty bullet. Leave empty to turn off.",
-						control: { type: 'text', key: 'actionsHeading', placeholder: d.actionsHeading },
+						control: { type: 'text', key: 'stepsHeading', placeholder: d.stepsHeading },
 					},
 					{
 						name: 'Show the logged line',

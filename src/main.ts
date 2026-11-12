@@ -22,7 +22,7 @@ import {
 	isBlank,
 	isEmptyItem,
 	logicalDate,
-	openActions,
+	openSteps,
 	parseTime,
 	parseTimeSlots,
 	resolvePlacement,
@@ -293,19 +293,19 @@ export default class DailyLoggingPlugin extends Plugin {
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
 		});
-		const actions = await this.readActions(file);
-		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, actions);
+		const steps = await this.readSteps(file);
+		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, steps);
 		await updated;
-		await this.showLoggedLine(await logged, actions.length > 0 || this.settings.childBullet);
+		await this.showLoggedLine(await logged, steps.length > 0 || this.settings.childBullet);
 	}
 
-	/** タスクのノートの、アクションの見出しの下にある未チェックのチェックボックス（1段インデント済み） */
-	private async readActions(file: TFile): Promise<string[]> {
-		const heading = this.settings.actionsHeading.trim();
+	/** タスクのノートの、ステップの見出しの下にある未チェックのチェックボックス（1段インデント済み） */
+	private async readSteps(file: TFile): Promise<string[]> {
+		const heading = this.settings.stepsHeading.trim();
 		if (heading === '') return [];
 		const data = await this.app.vault.read(file);
 		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
-		return openActions(data.slice(getFrontMatterInfo(data).contentStart), heading);
+		return openSteps(data.slice(getFrontMatterInfo(data).contentStart), heading);
 	}
 
 	/** タスクを終了する。予定日時は値だけ空にする */
@@ -371,7 +371,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!(leaf.view instanceof MarkdownView)) return;
 		const editor = leaf.view.editor;
 		if (!(await this.waitForLine(editor, logged))) return;
-		// 下に入れたバレットやアクションがあれば、その最初の行に置く
+		// 下に入れたバレットやステップがあれば、その最初の行に置く
 		const next = logged.line + 1;
 		const pos =
 			below && next < editor.lineCount()
@@ -533,11 +533,15 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<DailyLoggingSettings>,
-		);
+		const data = ((await this.loadData()) ?? {}) as Partial<DailyLoggingSettings> & {
+			actionsHeading?: unknown;
+		};
+		// 0.5.0 の「Actions heading」の値を引き継ぐ
+		if (typeof data.actionsHeading === 'string' && data.stepsHeading === undefined) {
+			data.stepsHeading = data.actionsHeading;
+		}
+		delete data.actionsHeading;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
 	async saveSettings() {
