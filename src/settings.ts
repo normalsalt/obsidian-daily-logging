@@ -50,6 +50,7 @@ export interface DailyLoggingSettings {
 	openDailyNote: boolean;
 
 	/** デイリーノートの記録とボタンに使う言葉 */
+	createLabel: string;
 	startLabel: string;
 	endLabel: string;
 	interruptLabel: string;
@@ -98,6 +99,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	stepsHeading: 'Steps',
 	openDailyNote: true,
 
+	createLabel: 'created',
 	startLabel: 'started',
 	endLabel: 'ended',
 	interruptLabel: 'interrupted',
@@ -314,6 +316,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				type: 'group',
 				heading: 'Labels',
 				items: [
+					{
+						name: 'Create label',
+						desc: 'Word written after the link when a new file is logged.',
+						control: { type: 'text', key: 'createLabel', placeholder: d.createLabel },
+					},
 					{
 						name: 'Start label',
 						desc: 'Word written after the link when a task is started.',

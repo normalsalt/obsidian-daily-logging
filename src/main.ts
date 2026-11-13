@@ -187,7 +187,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		this.pending.delete(file.path);
 		if (moment().diff(createdAt) > OPEN_WINDOW_MS) return;
 
-		void this.logEntry(file, createdAt);
+		void this.logEntry(file, createdAt, ` ${this.taskLabels().create}`);
 	}
 
 	/**
@@ -508,11 +508,19 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	/** 記録、ボタン、グループ名に使う文字（空欄なら既定値） */
-	taskLabels(): { start: string; end: string; interrupt: string; running: string; other: string } {
+	taskLabels(): {
+		create: string;
+		start: string;
+		end: string;
+		interrupt: string;
+		running: string;
+		other: string;
+	} {
 		const s = this.settings;
 		const d = DEFAULT_SETTINGS;
 		const pick = (v: string, fallback: string) => v.trim() || fallback;
 		return {
+			create: pick(s.createLabel, d.createLabel),
 			start: pick(s.startLabel, d.startLabel),
 			end: pick(s.endLabel, d.endLabel),
 			interrupt: pick(s.interruptLabel, d.interruptLabel),
