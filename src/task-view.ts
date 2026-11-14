@@ -1,4 +1,4 @@
-import { ItemView, Keymap, debounce, getFrontMatterInfo, moment, setIcon } from 'obsidian';
+import { ItemView, Keymap, debounce, getFrontMatterInfo, moment, setIcon, setTooltip } from 'obsidian';
 import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type DailyLoggingPlugin from './main';
 import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
@@ -17,6 +17,7 @@ import {
 	slotEnd,
 } from './task';
 import type { Moment, TaskContext, TaskDate, TaskProps } from './task';
+import { isIconId } from './settings';
 import { firstOpenItem } from './time-slots';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
@@ -287,23 +288,37 @@ export class TaskView extends ItemView {
 
 		// 実行中なら「中断」「終了」、それ以外なら「開始」「スキップ」を表示する
 		const labels = this.plugin.taskLabels();
+		const settings = this.plugin.settings;
 		const file = entry.file;
-		const actions: { label: string; run: () => Promise<void> }[] = isRunning(entry.props)
+		const actions: { label: string; icon: string; run: () => Promise<void> }[] = isRunning(
+			entry.props,
+		)
 			? [
-					{ label: labels.interrupt, run: () => this.plugin.interruptTask(file) },
-					{ label: labels.end, run: () => this.plugin.endTask(file) },
+					{
+						label: labels.interrupt,
+						icon: settings.interruptIcon,
+						run: () => this.plugin.interruptTask(file),
+					},
+					{ label: labels.end, icon: settings.endIcon, run: () => this.plugin.endTask(file) },
 				]
 			: [
-					{ label: labels.start, run: () => this.plugin.startTask(file) },
-					{ label: labels.skip, run: () => this.plugin.skipTask(file) },
+					{ label: labels.start, icon: settings.startIcon, run: () => this.plugin.startTask(file) },
+					{ label: labels.skip, icon: settings.skipIcon, run: () => this.plugin.skipTask(file) },
 				];
 
 		const buttons: HTMLButtonElement[] = [];
 		for (const action of actions) {
-			const button = item.createEl('button', {
-				cls: 'daily-logging-task-button',
-				text: action.label,
-			});
+			const button = item.createEl('button', { cls: 'daily-logging-task-button' });
+			// アイコンがなければ、文字を出さない設定でも文字を出す
+			const icon = action.icon.trim();
+			const hasIcon = isIconId(icon);
+			if (hasIcon) setIcon(button.createSpan({ cls: 'daily-logging-task-button-icon' }), icon);
+			if (!hasIcon || settings.showButtonText) {
+				button.createSpan({ text: action.label });
+			} else {
+				button.setAttribute('aria-label', action.label);
+				setTooltip(button, action.label);
+			}
 			buttons.push(button);
 			button.addEventListener('click', () => {
 				for (const b of buttons) b.disabled = true; // 二重に押されないようにする

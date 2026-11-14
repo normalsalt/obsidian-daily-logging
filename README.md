@@ -79,6 +79,8 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 
 When you start a task, the unchecked checkboxes under the **Steps heading** of the task's note (default: `Steps`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines.
 
+Each button shows an icon and its label. You can choose the icons in the **Buttons** settings, by the name of a built-in icon such as `play`. To show only the icons, turn off **Show text on buttons**. A button without an icon always shows its label.
+
 The **Start task**, **End task**, **Interrupt task**, and **Skip task** commands work on the file that is currently open. You can assign hotkeys to them.
 
 After you start, interrupt, end, or skip a task, the daily note opens in a new tab, with the cursor on the bullet under the new line (or on the new line, if the bullet is turned off). If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings. To skip a task without logging it, turn off **Log skipped tasks**.

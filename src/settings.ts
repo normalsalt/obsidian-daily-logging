@@ -1,4 +1,4 @@
-import { PluginSettingTab } from 'obsidian';
+import { PluginSettingTab, getIconIds } from 'obsidian';
 import type { App, SettingDefinitionItem } from 'obsidian';
 import { parseTime, parseTimeSlots } from './time-slots';
 import type DailyLoggingPlugin from './main';
@@ -50,6 +50,14 @@ export interface DailyLoggingSettings {
 	logSkip: boolean;
 	/** タスクを記録したら、デイリーノートの追記した行を表示する */
 	openDailyNote: boolean;
+
+	/** タスク一覧のボタンに、アイコンの右に文字も出す */
+	showButtonText: boolean;
+	/** ボタンのアイコン（組み込みアイコンの名前）。空ならアイコンなし */
+	startIcon: string;
+	skipIcon: string;
+	interruptIcon: string;
+	endIcon: string;
 
 	/** デイリーノートの記録とボタンに使う言葉 */
 	createLabel: string;
@@ -103,6 +111,12 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	logSkip: true,
 	openDailyNote: true,
 
+	showButtonText: true,
+	startIcon: 'play',
+	skipIcon: 'skip-forward',
+	interruptIcon: 'pause',
+	endIcon: 'check',
+
 	createLabel: 'created',
 	startLabel: 'started',
 	endLabel: 'ended',
@@ -124,6 +138,14 @@ export function parseExtensions(value: string): Set<string> {
 			.map((ext) => ext.trim().replace(/^\.+/, '').toLowerCase())
 			.filter((ext) => ext !== ''),
 	);
+}
+
+/** 組み込みアイコンの名前か（「lucide-」を付けずに書いてもよい） */
+export function isIconId(value: string): boolean {
+	const v = value.trim();
+	if (v === '') return false;
+	const ids = getIconIds();
+	return ids.includes(v) || ids.includes(`lucide-${v}`);
 }
 
 /** 曜日の表記を月曜日から順に返す。7つでなければ null */
@@ -153,6 +175,9 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem<keyof DailyLoggingSettings>[] {
 		const d = DEFAULT_SETTINGS;
 		const headingsOn = () => this.plugin.settings.useHeadings;
+		const iconDesc = 'Name of a built-in icon, such as play. Leave empty for no icon.';
+		const validateIcon = (value: string) =>
+			value.trim() === '' || isIconId(value) ? '' : 'Unknown icon name.';
 
 		return [
 			// 全般（見出しなし）
@@ -324,6 +349,37 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 			},
 			{
 				type: 'group',
+				heading: 'Buttons',
+				items: [
+					{
+						name: 'Show text on buttons',
+						desc: 'Show the label to the right of the icon on the buttons in the task list. Buttons without an icon always show the label.',
+						control: { type: 'toggle', key: 'showButtonText' },
+					},
+					{
+						name: 'Start icon',
+						desc: iconDesc,
+						control: { type: 'text', key: 'startIcon', validate: validateIcon },
+					},
+					{
+						name: 'Skip icon',
+						desc: iconDesc,
+						control: { type: 'text', key: 'skipIcon', validate: validateIcon },
+					},
+					{
+						name: 'Interrupt icon',
+						desc: iconDesc,
+						control: { type: 'text', key: 'interruptIcon', validate: validateIcon },
+					},
+					{
+						name: 'End icon',
+						desc: iconDesc,
+						control: { type: 'text', key: 'endIcon', validate: validateIcon },
+					},
+				],
+			},
+			{
+				type: 'group',
 				heading: 'Labels',
 				items: [
 					{
@@ -333,22 +389,22 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Start label',
-						desc: 'Word written after the link when a task is started.',
+						desc: 'Word written after the link when a task is started, and on its button.',
 						control: { type: 'text', key: 'startLabel', placeholder: d.startLabel },
 					},
 					{
 						name: 'End label',
-						desc: 'Word written after the link when a task is finished.',
+						desc: 'Word written after the link when a task is finished, and on its button.',
 						control: { type: 'text', key: 'endLabel', placeholder: d.endLabel },
 					},
 					{
 						name: 'Interrupt label',
-						desc: 'Word written after the link when a task is interrupted.',
+						desc: 'Word written after the link when a task is interrupted, and on its button.',
 						control: { type: 'text', key: 'interruptLabel', placeholder: d.interruptLabel },
 					},
 					{
 						name: 'Skip label',
-						desc: 'Word written after the link when a task is skipped.',
+						desc: 'Word written after the link when a task is skipped, and on its button.',
 						control: { type: 'text', key: 'skipLabel', placeholder: d.skipLabel },
 					},
 					{
