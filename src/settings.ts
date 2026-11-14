@@ -73,6 +73,7 @@ export interface DailyLoggingSettings {
 	endLabel: string;
 	interruptLabel: string;
 	skipLabel: string;
+	doneLabel: string;
 	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
@@ -134,6 +135,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	endLabel: 'ended',
 	interruptLabel: 'interrupted',
 	skipLabel: 'skipped',
+	doneLabel: 'done',
 	runningGroupLabel: 'Running',
 	otherGroupLabel: 'Other',
 
@@ -445,6 +447,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Skip label',
 						desc: 'Word written after the link when a task is skipped, and on its button.',
 						control: { type: 'text', key: 'skipLabel', placeholder: d.skipLabel },
+					},
+					{
+						name: 'Done label',
+						desc: 'Word written after the link when a task is marked as already done.',
+						control: { type: 'text', key: 'doneLabel', placeholder: d.doneLabel },
 					},
 					{
 						name: 'Running group name',

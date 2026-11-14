@@ -26,6 +26,7 @@ export interface TaskProps {
 	section: string;
 	scheduled: TaskDate | null;
 	start: Moment | null;
+	startKnown: boolean; // 開始日時に時刻があるか（開始忘れでは日付だけを書くので false）
 	end: Moment | null;
 	time: number | null; // 予定時刻（0:00 からの分）
 	skipped: TaskDate | null;
@@ -76,7 +77,8 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 	if (!fm) return null;
 	const cycle = toStringList(fm[names.cycle]);
 	const scheduled = toTaskDate(fm[names.scheduled]);
-	const start = toTaskDate(fm[names.start])?.value ?? null;
+	const startDate = toTaskDate(fm[names.start]);
+	const start = startDate?.value ?? null;
 	if (cycle.length === 0 && !scheduled && !start) return null;
 
 	const section = fm[names.section];
@@ -85,6 +87,7 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 		section: typeof section === 'string' ? section.trim() : '',
 		scheduled,
 		start,
+		startKnown: startDate?.hasTime ?? false,
 		end: toTaskDate(fm[names.end])?.value ?? null,
 		time: toMinutes(fm[names.time]),
 		skipped: toTaskDate(fm[names.skip]),
@@ -245,6 +248,12 @@ export function groupByTag<T extends { props: TaskProps }>(sorted: T[]): (T | Ta
 
 /** 開始日時・終了日時に書き込む形式（分単位） */
 export const PROP_DATE_FORMAT = 'YYYY-MM-DDTHH:mm';
+
+/** 開始忘れのとき、開始日時に書き込む形式（日付だけ。時刻が不明なことを表す） */
+export const PROP_DAY_FORMAT = 'YYYY-MM-DD';
+
+/** 分からない時刻と所要時間 */
+export const UNKNOWN_TIME = '??:??';
 
 /** 所要時間を「00:38」「01:05」の形にする。24時間を超えても繰り上げない（例：25:10） */
 export function formatDuration(from: Moment, to: Moment): string {

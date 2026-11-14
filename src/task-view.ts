@@ -1,10 +1,20 @@
-import { ItemView, Keymap, debounce, getFrontMatterInfo, moment, setIcon, setTooltip } from 'obsidian';
+import {
+	ItemView,
+	Keymap,
+	Menu,
+	debounce,
+	getFrontMatterInfo,
+	moment,
+	setIcon,
+	setTooltip,
+} from 'obsidian';
 import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type DailyLoggingPlugin from './main';
 import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
 import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
+	UNKNOWN_TIME,
 	compareTasks,
 	currentSlot,
 	effectiveScheduled,
@@ -384,10 +394,43 @@ export class TaskView extends ItemView {
 			void this.app.workspace.getLeaf(Keymap.isModEvent(evt)).openFile(entry.file);
 		});
 
-		// 実行中なら開始からの経過時間、そうでなければ今日の予定時刻を表示する
+		// 右クリック（モバイルは長押し）で、押し忘れたときの記録を出す
+		item.addEventListener('contextmenu', (evt) => {
+			evt.preventDefault();
+			const file = entry.file;
+			const items: { title: string; icon: string; run: () => Promise<void> }[] = isRunning(
+				entry.props,
+			)
+				? [{ title: 'Forgot to end', icon: 'check', run: () => this.plugin.forgotEndTask(file) }]
+				: [
+						{ title: 'Forgot to start', icon: 'play', run: () => this.plugin.forgotStartTask(file) },
+						{ title: 'Already done', icon: 'check-check', run: () => this.plugin.doneTask(file) },
+					];
+			const menu = new Menu();
+			for (const { title, icon, run } of items) {
+				menu.addItem((mi) =>
+					mi
+						.setTitle(title)
+						.setIcon(icon)
+						.onClick(() => {
+							void run()
+								.catch(reportError)
+								.finally(() => this.render());
+						}),
+				);
+			}
+			menu.showAtMouseEvent(evt);
+		});
+
+		// 実行中なら開始からの経過時間（開始忘れなら ??:??）、そうでなければ今日の予定時刻を表示する
 		const s = entry.scheduled;
 		const start = isRunning(entry.props) ? entry.props.start : null;
-		if (start) {
+		if (start && !entry.props.startKnown) {
+			item.createSpan({
+				cls: ['daily-logging-task-meta', 'daily-logging-elapsed'],
+				text: UNKNOWN_TIME,
+			});
+		} else if (start) {
 			const el = item.createSpan({
 				cls: ['daily-logging-task-meta', 'daily-logging-elapsed'],
 				text: formatDuration(start, moment()),

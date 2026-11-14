@@ -41,6 +41,8 @@ import {
 } from './time-slots';
 import {
 	PROP_DATE_FORMAT,
+	PROP_DAY_FORMAT,
+	UNKNOWN_TIME,
 	formatDuration,
 	isHolidayToday,
 	isRunning,
@@ -116,6 +118,22 @@ export default class DailyLoggingPlugin extends Plugin {
 			id: 'skip-task',
 			name: 'Skip task',
 			checkCallback: (checking) => this.taskCommand(checking, false, (f) => this.skipTask(f)),
+		});
+		this.addCommand({
+			id: 'forgot-start-task',
+			name: 'Forgot to start task',
+			checkCallback: (checking) =>
+				this.taskCommand(checking, false, (f) => this.forgotStartTask(f)),
+		});
+		this.addCommand({
+			id: 'forgot-end-task',
+			name: 'Forgot to end task',
+			checkCallback: (checking) => this.taskCommand(checking, true, (f) => this.forgotEndTask(f)),
+		});
+		this.addCommand({
+			id: 'done-task',
+			name: 'Mark task as already done',
+			checkCallback: (checking) => this.taskCommand(checking, false, (f) => this.doneTask(f)),
 		});
 		this.addCommand({
 			id: 'fetch-calendar-events',
@@ -254,6 +272,7 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/**
 	 * デイリーノートの、時刻に合う場所に1行記録する（キューで順番に処理）。
+	 * 行頭には time（既定は at の時刻）を書く。置き場所は at で決める。
 	 * その下に children を入れる（なければ、設定がオンなら空のバレット）。
 	 * 追記した場所を返す。記録しなかったとき、失敗したときは null
 	 */
@@ -262,6 +281,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		at: Moment,
 		suffix = '',
 		children: string[] = [],
+		time = at.format('HH:mm'),
 	): Promise<LoggedLine | null> {
 		return this.enqueue(async () => {
 			const dn = getDailyNotes(this.app);
@@ -282,7 +302,7 @@ export default class DailyLoggingPlugin extends Plugin {
 				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
 				// 子の行は2行目から一緒に入れる（返す行番号は記録の行のまま）
 				const below = children.length > 0 ? children : childBullet ? ['\t- '] : [];
-				const line = [`- ${at.format('HH:mm')} ${link}${suffix}`, ...below].join('\n');
+				const line = [`- ${time} ${link}${suffix}`, ...below].join('\n');
 				return slot
 					? insertUnderHeading(data, slot, slots, line, headingRule)
 					: appendLine(data, line);
@@ -299,6 +319,16 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** タスクを開始する。開始日時を書き込み、デイリーノートに記録する */
 	async startTask(file: TFile): Promise<void> {
+		await this.beginTask(file, false);
+	}
+
+	/** 開始を押し忘れたタスクを、開始時刻不明のまま実行中にする（開始日時は日付だけ、記録は ??:??） */
+	async forgotStartTask(file: TFile): Promise<void> {
+		await this.beginTask(file, true);
+	}
+
+	/** 開始と開始忘れの共通処理 */
+	private async beginTask(file: TFile, unknownStart: boolean): Promise<void> {
 		if (!this.ensureDailyNotes()) return;
 
 		const now = moment();
@@ -309,12 +339,13 @@ export default class DailyLoggingPlugin extends Plugin {
 		// フロントマターがなければ、processFrontMatter が作る
 		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			before.location = fm[names.location];
-			fm[names.start] = now.format(PROP_DATE_FORMAT);
+			fm[names.start] = now.format(unknownStart ? PROP_DAY_FORMAT : PROP_DATE_FORMAT);
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
 		});
 		const steps = await this.readSteps(file);
-		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, steps);
+		const time = unknownStart ? UNKNOWN_TIME : now.format('HH:mm');
+		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, steps, time);
 		await updated;
 		await this.showLoggedLine(await logged, steps.length > 0 || this.settings.childBullet);
 
@@ -342,21 +373,41 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.finishTask(file, 'interrupt');
 	}
 
-	/** 終了と中断の共通処理。終了日時を書き込み、所要時間付きで記録する */
-	private async finishTask(file: TFile, mode: 'end' | 'interrupt'): Promise<void> {
+	/** 終了を押し忘れたタスクを終了する（時刻と所要時間は ??:??） */
+	async forgotEndTask(file: TFile): Promise<void> {
+		await this.finishTask(file, 'forgotEnd');
+	}
+
+	/** 開始も終了も押し忘れたタスクを、実行済みとして記録する（時刻と所要時間は ??:??） */
+	async doneTask(file: TFile): Promise<void> {
+		await this.finishTask(file, 'done');
+	}
+
+	/**
+	 * 終了・中断・終了忘れ・実行済みの共通処理。終了日時を書き込み、所要時間付きで記録する。
+	 * 終了忘れと実行済みでも、実行中でなくすために終了日時は今にする（記録は ??:??）
+	 */
+	private async finishTask(
+		file: TFile,
+		mode: 'end' | 'interrupt' | 'forgotEnd' | 'done',
+	): Promise<void> {
 		if (!this.ensureDailyNotes()) return;
 
 		const now = moment();
 		const names = this.taskPropNames();
-		const before: { start: Moment | null } = { start: null };
+		const before: { start: Moment | null; startKnown: boolean } = {
+			start: null,
+			startKnown: false,
+		};
 		const updated = this.waitForMetadata(file);
 
 		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			const props = readTask(fm, names);
 			before.start = props?.start ?? null;
+			before.startKnown = props?.startKnown ?? false;
 			fm[names.end] = now.format(PROP_DATE_FORMAT);
 
-			if (mode === 'end') {
+			if (mode !== 'interrupt') {
 				if (names.scheduled in fm) fm[names.scheduled] = null; // 値だけ空にする
 			} else {
 				// 一定時間後に再開する見込みとして、予定日時を入れる（日付をまたいでもよい）
@@ -366,9 +417,19 @@ export default class DailyLoggingPlugin extends Plugin {
 		});
 
 		const labels = this.taskLabels();
-		const label = mode === 'end' ? labels.end : labels.interrupt;
-		const duration = before.start ? ` (${formatDuration(before.start, now)})` : '';
-		const logged = this.logEntry(file, now, ` ${label}${duration}`);
+		const label = {
+			end: labels.end,
+			interrupt: labels.interrupt,
+			forgotEnd: labels.end,
+			done: labels.done,
+		}[mode];
+		const forgot = mode === 'forgotEnd' || mode === 'done';
+		// 開始時刻が分からなければ（開始忘れ）、所要時間も分からない
+		let duration = '';
+		if (forgot || (before.start && !before.startKnown)) duration = ` (${UNKNOWN_TIME})`;
+		else if (before.start) duration = ` (${formatDuration(before.start, now)})`;
+		const time = forgot ? UNKNOWN_TIME : now.format('HH:mm');
+		const logged = this.logEntry(file, now, ` ${label}${duration}`, [], time);
 		await updated;
 		await this.showLoggedLine(await logged, this.settings.childBullet);
 	}
@@ -608,6 +669,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		end: string;
 		interrupt: string;
 		skip: string;
+		done: string;
 		running: string;
 		other: string;
 	} {
@@ -620,6 +682,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			end: pick(s.endLabel, d.endLabel),
 			interrupt: pick(s.interruptLabel, d.interruptLabel),
 			skip: pick(s.skipLabel, d.skipLabel),
+			done: pick(s.doneLabel, d.doneLabel),
 			running: pick(s.runningGroupLabel, d.runningGroupLabel),
 			other: pick(s.otherGroupLabel, d.otherGroupLabel),
 		};
