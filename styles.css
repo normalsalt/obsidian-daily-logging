@@ -1,14 +1,36 @@
-.daily-logging-tasks .daily-logging-group {
-	margin-bottom: var(--size-4-4);
+/*
+ * Obsidian Bases のテーブル（グループ表示）にならう。Bases の変数をそのまま使い、
+ * テーマが Bases のテーブルを変えていれば、こちらにも同じように効くようにする
+ */
+.daily-logging-list {
+	--daily-logging-row-height: var(--bases-table-row-height, 30px);
+	--daily-logging-font-size: var(--bases-table-font-size, var(--font-smaller));
+	display: flex;
+	flex-direction: column;
+	gap: var(--bases-table-group-gap, 10px);
 }
 
+/* 上部のボタンは、右上に詰めて並べる */
+.daily-logging-tasks .nav-header {
+	padding: var(--size-2-2) var(--size-2-2) 0;
+}
+
+.daily-logging-tasks .nav-buttons-container {
+	justify-content: flex-end;
+	gap: var(--size-2-1);
+}
+
+/* セクション名は、Bases のグループの見出しと同じく、テーブルの外の上に置く */
 .daily-logging-tasks h4 {
 	display: flex;
 	align-items: center;
-	gap: var(--size-2-2);
-	margin: var(--size-4-2) 0;
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
+	gap: var(--size-4-1);
+	height: var(--daily-logging-row-height);
+	margin: 0;
+	padding-inline: var(--size-4-2);
+	font-size: var(--daily-logging-font-size);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
 	cursor: pointer;
 }
 
@@ -25,6 +47,7 @@
 
 .daily-logging-remaining {
 	margin-inline-start: auto;
+	color: var(--text-muted);
 	font-weight: var(--font-normal);
 	font-variant-numeric: tabular-nums;
 }
@@ -35,11 +58,38 @@
 	padding: 0;
 }
 
+/*
+ * グループのタスクはテーブルにする。Bases のビューと同じく、周りの余白・左右の枠・角丸はなく、
+ * サイドバーの幅いっぱいに広げる。上下にだけ線を引く。行の背景は、Bases のテーブルの本体と同じ
+ */
+.daily-logging-group > ul {
+	border-block: var(--border-width, 1px) solid
+		var(--table-border-color, var(--background-modifier-border));
+	background-color: var(--background-primary);
+	overflow: hidden;
+}
+
+/*
+ * 行（タグ名とタスク）。区切りは Bases と同じく、各行の上に引く影。
+ * テーブルの最初の行の線は、テーブルの枠の外に出るので見えない
+ */
+.daily-logging-subgroup-title,
 .daily-logging-task {
 	display: flex;
 	align-items: center;
+	box-sizing: border-box;
+	height: var(--daily-logging-row-height);
+	padding-inline: var(--size-4-2);
+	font-size: var(--daily-logging-font-size);
+	box-shadow: 0 -1px 0 var(--table-border-color, var(--background-modifier-border));
+}
+
+.daily-logging-task {
 	gap: var(--size-4-2);
-	padding: var(--size-2-2) 0;
+}
+
+.daily-logging-task:hover {
+	background-color: var(--bases-table-row-background-hover, var(--table-row-background-hover));
 }
 
 .daily-logging-task-name {
@@ -55,44 +105,47 @@
 .daily-logging-task.is-running,
 .daily-logging-group:has(> h4.is-current) .daily-logging-task {
 	background-color: var(--background-modifier-active-hover);
-	border-radius: var(--radius-s);
-	padding-inline: var(--size-4-2);
-	margin-inline: calc(-1 * var(--size-4-2));
 }
 
-/* 字下げはせず、左端の縦線で範囲を示す（線と余白を一覧の左の余白に出し、タスク名の位置をそろえる） */
+/*
+ * タグのまとまりは、中の行（タグ名とタスク）の左端に縦線を引いて範囲を示す。
+ * 線と文字の間は、線のない行の左の余白と同じにする（文字は線の太さの分だけ右に寄る）
+ */
 .daily-logging-subgroup {
-	margin-inline-start: calc(-1 * (var(--size-4-2) + 2px));
-	padding-inline-start: var(--size-4-2);
-	border-inline-start: 2px solid var(--background-modifier-border-hover);
+	--daily-logging-group-line: 4px;
 }
 
-/* タグ名には常に背景色を付ける（縦線の内側から、文字のある部分だけ） */
+.daily-logging-subgroup .daily-logging-subgroup-title,
+.daily-logging-subgroup .daily-logging-task {
+	padding-inline-start: calc(var(--size-4-2) + var(--daily-logging-group-line));
+	box-shadow:
+		inset var(--daily-logging-group-line) 0 0 var(--background-modifier-border-hover),
+		0 -1px 0 var(--table-border-color, var(--background-modifier-border));
+}
+
+/* タグ名の行は、Bases のグループ名の行と同じ背景 */
 .daily-logging-subgroup-title {
-	width: fit-content;
 	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-	padding: var(--size-2-2) var(--size-4-2);
-	margin-inline-start: calc(-1 * var(--size-4-2));
-	background-color: var(--background-modifier-hover);
-	border-radius: 0 var(--radius-s) var(--radius-s) 0;
+	background-color: var(--bases-table-group-background, var(--background-primary-alt));
 }
 
 .daily-logging-task-meta {
 	color: var(--text-faint);
-	font-size: var(--font-ui-smaller);
 }
 
 .daily-logging-elapsed {
 	font-variant-numeric: tabular-nums;
 }
 
+/* ボタンは中身に合わせた高さにする */
 .daily-logging-task-button {
 	flex: none;
 	display: inline-flex;
 	align-items: center;
 	gap: var(--size-2-2);
-	font-size: var(--font-ui-smaller);
+	height: auto;
+	padding: var(--size-2-1) var(--size-4-2);
+	font-size: var(--daily-logging-font-size);
 }
 
 .daily-logging-task-button-icon {
@@ -100,12 +153,14 @@
 	--icon-size: var(--icon-xs);
 }
 
-.daily-logging-empty {
-	color: var(--text-muted);
+/* 一覧の周りには余白がないので、文の左右にだけ空ける */
+.daily-logging-empty,
+.daily-logging-warning {
+	padding-inline: var(--size-4-2);
 }
 
-.daily-logging-list {
-	padding: 0 var(--size-4-2);
+.daily-logging-empty {
+	color: var(--text-muted);
 }
 
 .daily-logging-warning {
