@@ -50,6 +50,11 @@
 	margin-inline: calc(-1 * var(--size-4-2));
 }
 
+/* タグのまとまりの上下に、同じだけ余白を空ける */
+.daily-logging-subgroup {
+	margin-block: var(--size-2-2);
+}
+
 .daily-logging-subgroup-title {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
