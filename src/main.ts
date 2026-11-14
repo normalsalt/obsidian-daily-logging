@@ -582,8 +582,11 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (typeof data.actionsHeading === 'string' && data.stepsHeading === undefined) {
 			data.stepsHeading = data.actionsHeading;
 		}
-		delete data.actionsHeading;
+		// 使われなくなった設定のキーは捨てる（data.json に残り続けないように）
+		const unknown = Object.keys(data).filter((key) => !(key in DEFAULT_SETTINGS));
+		for (const key of unknown) delete (data as Record<string, unknown>)[key];
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+		if (unknown.length > 0) await this.saveSettings();
 	}
 
 	async saveSettings() {
