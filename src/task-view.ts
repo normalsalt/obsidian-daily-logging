@@ -37,6 +37,9 @@ export class TaskView extends ItemView {
 	/** 一覧を描く場所（上部のボタンは描き直さない） */
 	private listEl: HTMLElement | null = null;
 
+	/** スキップボタンの表示を切り替える、上部のボタン */
+	private skipToggleEl: HTMLElement | null = null;
+
 	/** 今表示しているタスクのパス（再描画が必要かの判定に使う） */
 	private shown = new Set<string>();
 
@@ -86,6 +89,15 @@ export class TaskView extends ItemView {
 		// サイドバーではビューのヘッダーが表示されないので、本文の上部にボタンを置く
 		const header = root.createDiv({ cls: 'nav-header' });
 		const buttons = header.createDiv({ cls: 'nav-buttons-container' });
+		const skipToggle = buttons.createDiv({ cls: 'clickable-icon nav-action-button' });
+		this.skipToggleEl = skipToggle;
+		this.registerDomEvent(skipToggle, 'click', () => {
+			const settings = this.plugin.settings;
+			settings.showSkipButtons = !settings.showSkipButtons;
+			this.render();
+			void this.plugin.saveSettings().catch(reportError);
+		});
+
 		const refresh = buttons.createDiv({
 			cls: 'clickable-icon nav-action-button',
 			attr: { 'aria-label': 'Refresh' },
@@ -222,6 +234,7 @@ export class TaskView extends ItemView {
 		this.shownSlot = currentSlot(ctx, moment());
 		this.remainingEl = null;
 		this.elapsedEls = [];
+		this.updateSkipToggle();
 		root.empty();
 
 		if (!this.shownAvailable) {
@@ -257,6 +270,16 @@ export class TaskView extends ItemView {
 				for (const e of item.entries) this.renderTask(subList, e, ctx);
 			}
 		}
+	}
+
+	/** スキップボタンの表示を切り替えるボタンの、アイコン・ラベル・状態を今の設定に合わせる */
+	private updateSkipToggle(): void {
+		const el = this.skipToggleEl;
+		if (!el) return;
+		const { skipIcon, showSkipButtons } = this.plugin.settings;
+		setIcon(el, isIconId(skipIcon) ? skipIcon.trim() : 'skip-forward');
+		el.setAttribute('aria-label', showSkipButtons ? 'Hide skip buttons' : 'Show skip buttons');
+		el.toggleClass('is-active', showSkipButtons);
 	}
 
 	/** 残り時間と、実行中のタスクの経過時間を書き換える */
@@ -312,7 +335,9 @@ export class TaskView extends ItemView {
 				]
 			: [
 					{ label: labels.start, icon: settings.startIcon, run: () => this.plugin.startTask(file) },
-					{ label: labels.skip, icon: settings.skipIcon, run: () => this.plugin.skipTask(file) },
+					...(settings.showSkipButtons
+						? [{ label: labels.skip, icon: settings.skipIcon, run: () => this.plugin.skipTask(file) }]
+						: []),
 				];
 
 		const buttons: HTMLButtonElement[] = [];

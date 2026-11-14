@@ -55,6 +55,8 @@ export interface DailyLoggingSettings {
 
 	/** タスク一覧のボタンに、アイコンの右に文字も出す */
 	showButtonText: boolean;
+	/** タスク一覧にスキップボタンを出す（一覧の上部のボタンで切り替える。設定画面には出さない） */
+	showSkipButtons: boolean;
 	/** ボタンのアイコン（組み込みアイコンの名前）。空ならアイコンなし */
 	startIcon: string;
 	skipIcon: string;
@@ -115,6 +117,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	openDailyNote: true,
 
 	showButtonText: true,
+	showSkipButtons: true,
 	startIcon: 'play',
 	skipIcon: 'skip-forward',
 	interruptIcon: 'pause',
