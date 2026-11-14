@@ -60,19 +60,22 @@
 	margin-inline: calc(-1 * var(--size-4-2));
 }
 
-/* タグのまとまりの上下に、同じだけ余白を空ける */
+/* 字下げはせず、左端の縦線で範囲を示す（線と余白を一覧の左の余白に出し、タスク名の位置をそろえる） */
 .daily-logging-subgroup {
-	margin-block: var(--size-2-2);
+	margin-inline-start: calc(-1 * (var(--size-4-2) + 2px));
+	padding-inline-start: var(--size-4-2);
+	border-inline-start: 2px solid var(--background-modifier-border-hover);
 }
 
+/* タグ名には常に背景色を付ける（縦線の内側から、文字のある部分だけ） */
 .daily-logging-subgroup-title {
+	width: fit-content;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
-	padding: var(--size-2-2) 0;
-}
-
-.daily-logging-tasks .daily-logging-subgroup > ul {
-	padding-inline-start: var(--size-4-4);
+	padding: var(--size-2-2) var(--size-4-2);
+	margin-inline-start: calc(-1 * var(--size-4-2));
+	background-color: var(--background-modifier-hover);
+	border-radius: 0 var(--radius-s) var(--radius-s) 0;
 }
 
 .daily-logging-task-meta {
