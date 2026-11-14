@@ -12,6 +12,12 @@
 	cursor: pointer;
 }
 
+/* 開けるものがないデイリーノートの移動ボタン */
+.daily-logging-tasks .nav-action-button.is-disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
 .daily-logging-group-chevron {
 	display: flex;
 	--icon-size: var(--icon-xs);

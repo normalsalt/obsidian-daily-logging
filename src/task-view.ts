@@ -40,6 +40,9 @@ export class TaskView extends ItemView {
 	/** スキップボタンの表示を切り替える、上部のボタン */
 	private skipToggleEl: HTMLElement | null = null;
 
+	/** デイリーノートの移動ボタン（前・今日・次） */
+	private dailyNavEls: { prev: HTMLElement; today: HTMLElement; next: HTMLElement } | null = null;
+
 	/** 今表示しているタスクのパス（再描画が必要かの判定に使う） */
 	private shown = new Set<string>();
 
@@ -89,6 +92,25 @@ export class TaskView extends ItemView {
 		// サイドバーではビューのヘッダーが表示されないので、本文の上部にボタンを置く
 		const header = root.createDiv({ cls: 'nav-header' });
 		const buttons = header.createDiv({ cls: 'nav-buttons-container' });
+
+		// デイリーノートの移動（前・今日・次）。無効なボタンは押しても何もしない
+		const navButton = (icon: string, label: string, run: () => Promise<void>) => {
+			const el = buttons.createDiv({
+				cls: 'clickable-icon nav-action-button',
+				attr: { 'aria-label': label },
+			});
+			setIcon(el, icon);
+			this.registerDomEvent(el, 'click', () => {
+				if (!el.hasClass('is-disabled')) void run().catch(reportError);
+			});
+			return el;
+		};
+		this.dailyNavEls = {
+			prev: navButton('chevron-left', 'Previous daily note', () => this.plugin.openAdjacent(-1)),
+			today: navButton('calendar', "Open today's daily note", () => this.plugin.openToday()),
+			next: navButton('chevron-right', 'Next daily note', () => this.plugin.openAdjacent(1)),
+		};
+
 		const skipToggle = buttons.createDiv({ cls: 'clickable-icon nav-action-button' });
 		this.skipToggleEl = skipToggle;
 		this.registerDomEvent(skipToggle, 'click', () => {
@@ -135,6 +157,15 @@ export class TaskView extends ItemView {
 				if (this.shown.has(oldPath)) requestRender();
 			}),
 		);
+
+		// 前後のデイリーノートがあるかは、開いているノートと、ファイルの増減で変わる
+		const requestNav = debounce(() => this.updateDailyNav(), 300, true);
+		// 同じタブの中でノートを切り替えたときは active-leaf-change が出ないので、file-open も見る
+		this.registerEvent(this.app.workspace.on('active-leaf-change', () => this.updateDailyNav()));
+		this.registerEvent(this.app.workspace.on('file-open', () => this.updateDailyNav()));
+		this.registerEvent(vault.on('create', requestNav));
+		this.registerEvent(vault.on('delete', requestNav));
+		this.registerEvent(vault.on('rename', requestNav));
 
 		// 起動直後はプロパティがまだ読み込まれていないことがあるので、読み込みが終わったら1回描き直す
 		const resolved = metadataCache.on('resolved', () => {
@@ -235,6 +266,7 @@ export class TaskView extends ItemView {
 		this.remainingEl = null;
 		this.elapsedEls = [];
 		this.updateSkipToggle();
+		this.updateDailyNav();
 		root.empty();
 
 		if (!this.shownAvailable) {
@@ -303,6 +335,20 @@ export class TaskView extends ItemView {
 			: [...collapsed, title];
 		this.render();
 		void this.plugin.saveSettings().catch(reportError);
+	}
+
+	/** デイリーノートの移動ボタンを、開けるものがあるかに合わせて有効・無効にする */
+	private updateDailyNav(): void {
+		const els = this.dailyNavEls;
+		if (!els) return;
+		const available = getDailyNotes(this.app) !== null;
+		const setEnabled = (el: HTMLElement, enabled: boolean) => {
+			el.toggleClass('is-disabled', !enabled);
+			el.setAttribute('aria-disabled', String(!enabled));
+		};
+		setEnabled(els.today, available);
+		setEnabled(els.prev, available && this.plugin.adjacentDailyNote(-1) !== null);
+		setEnabled(els.next, available && this.plugin.adjacentDailyNote(1) !== null);
 	}
 
 	/** スキップボタンの表示を切り替えるボタンの、アイコン・ラベル・状態を今の設定に合わせる */

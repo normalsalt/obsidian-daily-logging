@@ -1,4 +1,13 @@
-import { MarkdownView, Notice, Plugin, TFile, debounce, getFrontMatterInfo, moment } from 'obsidian';
+import {
+	FileView,
+	MarkdownView,
+	Notice,
+	Plugin,
+	TFile,
+	debounce,
+	getFrontMatterInfo,
+	moment,
+} from 'obsidian';
 import type { Editor, Events, TAbstractFile, WorkspaceLeaf } from 'obsidian';
 import {
 	DEFAULT_SETTINGS,
@@ -9,8 +18,11 @@ import {
 import type { DailyLoggingSettings } from './settings';
 import {
 	NO_DAILY_NOTES_MESSAGE,
+	adjacentDailyNote,
 	appendLine,
+	dailyNoteDate,
 	getDailyNotes,
+	getOrCreateDailyNote,
 	isDailyNote,
 	reportError,
 	updateDailyNote,
@@ -388,9 +400,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!logged || !this.settings.openDailyNote) return;
 		const { workspace } = this.app;
 
-		let leaf = workspace
-			.getLeavesOfType('markdown')
-			.find((l) => l.view instanceof MarkdownView && l.view.file?.path === logged.file.path);
+		let leaf = this.leafShowing(logged.file);
 		if (!leaf) {
 			leaf = workspace.getLeaf('tab');
 			await leaf.openFile(logged.file);
@@ -411,6 +421,58 @@ export default class DailyLoggingPlugin extends Plugin {
 		editor.setCursor(pos);
 		editor.scrollIntoView({ from: pos, to: pos }, true);
 		editor.focus();
+	}
+
+	/** そのファイルを表示しているタブ。なければ undefined */
+	private leafShowing(file: TFile): WorkspaceLeaf | undefined {
+		return this.app.workspace
+			.getLeavesOfType('markdown')
+			.find((l) => l.view instanceof MarkdownView && l.view.file?.path === file.path);
+	}
+
+	/** そのファイルを開いているタブがあれば前に出し、なければ今のタブで開く */
+	private async revealFile(file: TFile): Promise<void> {
+		const { workspace } = this.app;
+		let leaf = this.leafShowing(file);
+		if (!leaf) {
+			leaf = workspace.getLeaf(false);
+			await leaf.openFile(file);
+		}
+		workspace.setActiveLeaf(leaf, { focus: true });
+		await workspace.revealLeaf(leaf);
+	}
+
+	/**
+	 * 前後のデイリーノートを探す基準の日付。中央でいちばん最近のタブがデイリーノートならその日付、
+	 * そうでなければ論理上の今日（サイドバーのボタンを押した時点では、アクティブなのはタスク一覧なので）
+	 */
+	dailyNoteBase(): Moment {
+		const dn = getDailyNotes(this.app);
+		const view = this.app.workspace.getMostRecentLeaf()?.view;
+		const file = view instanceof FileView ? view.file : null;
+		return (dn && file && dailyNoteDate(file, dn)) || this.taskContext().today;
+	}
+
+	/** 前（dir = -1）か後（dir = 1）の、既存のデイリーノート。なければ null */
+	adjacentDailyNote(dir: -1 | 1): TFile | null {
+		const dn = getDailyNotes(this.app);
+		return dn ? adjacentDailyNote(this.app, dn, this.dailyNoteBase(), dir) : null;
+	}
+
+	/** 論理上の今日のデイリーノートを開く（なければテンプレート付きで作る） */
+	async openToday(): Promise<void> {
+		const dn = getDailyNotes(this.app);
+		if (!dn) {
+			new Notice(NO_DAILY_NOTES_MESSAGE);
+			return;
+		}
+		await this.revealFile(await getOrCreateDailyNote(dn, this.taskContext().today));
+	}
+
+	/** 前か後の、既存のデイリーノートを開く */
+	async openAdjacent(dir: -1 | 1): Promise<void> {
+		const file = this.adjacentDailyNote(dir);
+		if (file) await this.revealFile(file);
 	}
 
 	/**

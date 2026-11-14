@@ -81,13 +81,47 @@ function formatOf(dn: DailyNotesInstance): string {
 	return typeof format === 'string' && format.trim() !== '' ? format : DEFAULT_FORMAT;
 }
 
-/** デイリーノート（保存先フォルダ内で、日付の形式に一致するノート）かどうか */
-export function isDailyNote(file: TFile, dn: DailyNotesInstance): boolean {
-	if (file.extension !== 'md') return false;
+/** デイリーノート（保存先フォルダ内で、日付の形式に一致するノート）の日付。デイリーノートでなければ null */
+export function dailyNoteDate(file: TFile, dn: DailyNotesInstance): Moment | null {
+	if (file.extension !== 'md') return null;
 	const folder = folderOf(dn);
-	if (folder && !file.path.startsWith(`${folder}/`)) return false;
+	if (folder && !file.path.startsWith(`${folder}/`)) return null;
 	const rel = (folder ? file.path.slice(folder.length + 1) : file.path).replace(/\.md$/, '');
-	return moment(rel, formatOf(dn), true).isValid();
+	const date = moment(rel, formatOf(dn), true);
+	return date.isValid() ? date : null;
+}
+
+/** デイリーノートかどうか */
+export function isDailyNote(file: TFile, dn: DailyNotesInstance): boolean {
+	return dailyNoteDate(file, dn) !== null;
+}
+
+/** from の日より前（dir = -1）か後（dir = 1）にある、いちばん近い既存のデイリーノート。なければ null */
+export function adjacentDailyNote(
+	app: App,
+	dn: DailyNotesInstance,
+	from: Moment,
+	dir: -1 | 1,
+): TFile | null {
+	let best: { file: TFile; date: Moment } | null = null;
+	for (const file of app.vault.getMarkdownFiles()) {
+		const date = dailyNoteDate(file, dn);
+		if (!date) continue;
+		const beyond = dir < 0 ? date.isBefore(from, 'day') : date.isAfter(from, 'day');
+		if (!beyond) continue;
+		const closer = !best || (dir < 0 ? date.isAfter(best.date) : date.isBefore(best.date));
+		if (closer) best = { file, date };
+	}
+	return best?.file ?? null;
+}
+
+/** 指定日のデイリーノートを返す。なければテンプレート付きで作る */
+export async function getOrCreateDailyNote(dn: DailyNotesInstance, date: Moment): Promise<TFile> {
+	const dailyNote = await dn.getDailyNote(date);
+	if (!(dailyNote instanceof TFile)) {
+		throw new Error('Could not get the daily note.');
+	}
+	return dailyNote;
 }
 
 /** デイリーノートに追記した場所 */
@@ -104,10 +138,7 @@ export async function updateDailyNote(
 	date: Moment,
 	update: (data: string, dailyNote: TFile) => Inserted,
 ): Promise<LoggedLine> {
-	const dailyNote = await dn.getDailyNote(date);
-	if (!(dailyNote instanceof TFile)) {
-		throw new Error('Could not get the daily note.');
-	}
+	const dailyNote = await getOrCreateDailyNote(dn, date);
 	let line = 0;
 	let text = '';
 	await app.vault.process(dailyNote, (data) => {
