@@ -195,11 +195,10 @@ export function insertUnderHeading(
 	slot: TimeSlot,
 	slots: TimeSlot[],
 	line: string,
-	withRule: boolean,
 ): Inserted {
 	const lines = data.split('\n');
 	const headings = findHeadings(lines);
-	const block = withRule ? [`## ${slot.heading}`, '---', line] : [`## ${slot.heading}`, line];
+	const block = [`## ${slot.heading}`, line];
 
 	// 見出しがある場合：次の同レベル以上の見出しの直前（末尾の空行は詰める）。
 	// 末尾の空の箇条書きは消し、空行は追記した行の後ろに残す

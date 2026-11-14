@@ -6,11 +6,9 @@ When you create a note, Daily Logging appends the time and a link to today's dai
 
 ```markdown
 ## Morning routine
----
 - 06:12 [[Stretching]] started
 - 06:30 [[Stretching]] ended (00:18)
 ## Main work
----
 - 13:05 [[Fix login bug]] created
 - 13:40 [[Weekly report]] started
 - 14:10 [[Weekly report]] interrupted (00:30)

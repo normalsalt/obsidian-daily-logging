@@ -294,7 +294,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			if (isDailyNote(file, dn)) return null; // デイリーノート自身は対象外
 			if (!this.app.vault.getFileByPath(file.path)) return null; // 処理を待つ間に削除された
 
-			const { useHeadings, headingRule, logToPreviousDay, timeSlots, childBullet } = this.settings;
+			const { useHeadings, logToPreviousDay, timeSlots, childBullet } = this.settings;
 			const slots = useHeadings ? parseTimeSlots(timeSlots).slots : [];
 			const { date, slot } = resolvePlacement(at, slots, logToPreviousDay);
 
@@ -304,7 +304,7 @@ export default class DailyLoggingPlugin extends Plugin {
 				const below = children.length > 0 ? children : childBullet ? ['\t- '] : [];
 				const line = [`- ${time} ${link}${suffix}`, ...below].join('\n');
 				return slot
-					? insertUnderHeading(data, slot, slots, line, headingRule)
+					? insertUnderHeading(data, slot, slots, line)
 					: appendLine(data, line);
 			});
 		});

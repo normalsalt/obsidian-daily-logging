@@ -12,8 +12,6 @@ export interface DailyLoggingSettings {
 	cursorToEnd: boolean;
 	/** 時間帯の見出しの下に追記する */
 	useHeadings: boolean;
-	/** 新しく作る見出しの下に区切り線（---）を入れる */
-	headingRule: boolean;
 	/** 最初の時間帯より前は、前日の最後の時間帯に追記する */
 	logToPreviousDay: boolean;
 	/** 「時刻 | 見出し | タグ」を1行に1つ */
@@ -91,7 +89,6 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	childBullet: true,
 	cursorToEnd: true,
 	useHeadings: true,
-	headingRule: true,
 	logToPreviousDay: true,
 	timeSlots: [
 		'6:00 | Morning routine | morning',
@@ -218,12 +215,6 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Group entries by time slot',
 						desc: 'Add each entry under the heading of its time slot.',
 						control: { type: 'toggle', key: 'useHeadings' },
-					},
-					{
-						name: 'Add a horizontal rule under new headings',
-						desc: 'Insert "---" on the line after each heading this plugin creates.',
-						visible: headingsOn,
-						control: { type: 'toggle', key: 'headingRule' },
 					},
 					{
 						name: 'Log early entries to the previous day',
