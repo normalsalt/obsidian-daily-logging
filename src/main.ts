@@ -308,7 +308,7 @@ export default class DailyLoggingPlugin extends Plugin {
 
 		// 場所のプロパティに URL か内部リンクがあれば、すぐ開けるように出す
 		const links = this.settings.showLinksOnStart ? findLinks(before.location) : [];
-		if (links.length > 0) new LinkModal(this.app, file.basename, links, file.path).open();
+		if (links.length > 0) new LinkModal(this.app, file.basename, links, file).open();
 	}
 
 	/** タスクのノートの、ステップの見出しの下にある未チェックのチェックボックス（1段インデント済み） */

@@ -1,5 +1,5 @@
 import { MarkdownView, Modal } from 'obsidian';
-import type { App } from 'obsidian';
+import type { App, TFile } from 'obsidian';
 
 /** プロパティの値から拾ったリンク */
 export interface FoundLink {
@@ -49,36 +49,42 @@ export class LinkModal extends Modal {
 		app: App,
 		private title: string,
 		private links: FoundLink[],
-		private sourcePath: string,
+		private file: TFile,
 	) {
 		super(app);
 	}
 
 	onOpen(): void {
 		this.setTitle(this.title);
+		// 本文にリンクを1行ずつ並べる
 		const list = this.contentEl.createDiv({ cls: 'daily-logging-links' });
-		const buttons = this.links.map((link, i) => {
-			const button = list.createEl('button', {
-				cls: i === 0 ? 'mod-cta' : '',
+		const anchors = this.links.map((link) => {
+			const a = list.createDiv().createEl('a', {
+				cls: link.kind === 'url' ? 'external-link' : 'internal-link',
 				text: link.text,
-				attr: { 'aria-label': link.target },
+				href: link.kind === 'url' ? link.target : '#',
 			});
-			button.addEventListener('click', () => {
+			a.addEventListener('click', (evt) => {
+				evt.preventDefault();
 				this.close();
 				if (link.kind === 'url') {
 					window.open(link.target);
 				} else {
-					void this.app.workspace.openLinkText(link.target, this.sourcePath, 'tab');
+					void this.app.workspace.openLinkText(link.target, this.file.path, 'tab');
 				}
 			});
-			return button;
+			return a;
 		});
 
-		const footer = this.contentEl.createDiv({ cls: 'modal-button-container' });
-		footer.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close());
+		const row = this.contentEl.createDiv({ cls: 'modal-button-container' });
+		row.createEl('button', { text: 'Open note' }).addEventListener('click', () => {
+			this.close();
+			void this.app.workspace.getLeaf('tab').openFile(this.file);
+		});
+		row.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close());
 
 		// 1つ目のリンクにフォーカスし、Enter で開けるようにする
-		buttons[0]?.focus();
+		anchors[0]?.focus();
 	}
 
 	onClose(): void {
