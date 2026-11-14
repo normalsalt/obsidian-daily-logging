@@ -59,6 +59,8 @@ export interface DailyLoggingSettings {
 	showButtonText: boolean;
 	/** タスク一覧にスキップボタンを出す（一覧の上部のボタンで切り替える。設定画面には出さない） */
 	showSkipButtons: boolean;
+	/** タスク一覧で閉じているグループの名前（見出しを押して切り替える。設定画面には出さない） */
+	collapsedGroups: string[];
 	/** ボタンのアイコン（組み込みアイコンの名前）。空ならアイコンなし */
 	startIcon: string;
 	skipIcon: string;
@@ -121,6 +123,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 
 	showButtonText: true,
 	showSkipButtons: true,
+	collapsedGroups: [],
 	startIcon: 'play',
 	skipIcon: 'skip-forward',
 	interruptIcon: 'pause',

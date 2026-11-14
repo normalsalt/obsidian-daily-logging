@@ -3,18 +3,22 @@
 }
 
 .daily-logging-tasks h4 {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
 	margin: var(--size-4-2) 0;
 	color: var(--text-muted);
 	font-size: var(--font-ui-small);
+	cursor: pointer;
 }
 
-.daily-logging-tasks h4.is-current {
+.daily-logging-group-chevron {
 	display: flex;
-	justify-content: space-between;
-	gap: var(--size-4-2);
+	--icon-size: var(--icon-xs);
 }
 
 .daily-logging-remaining {
+	margin-inline-start: auto;
 	font-weight: var(--font-normal);
 	font-variant-numeric: tabular-nums;
 }

@@ -248,16 +248,37 @@ export class TaskView extends ItemView {
 
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
 		for (const group of groups) {
+			const title = this.groupTitle(group, ctx);
+			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
+			const collapsed = this.plugin.settings.collapsedGroups.includes(title);
+
+			// 見出しを押すと、グループを閉じたり開いたりする（閉じている間は件数を出す）
 			const section = root.createDiv({ cls: 'daily-logging-group' });
-			const heading = section.createEl('h4', { text: this.groupTitle(group, ctx) });
+			section.toggleClass('is-collapsed', collapsed);
+			const heading = section.createEl('h4', {
+				attr: { role: 'button', tabindex: '0', 'aria-expanded': String(!collapsed) },
+			});
+			setIcon(
+				heading.createSpan({ cls: 'daily-logging-group-chevron' }),
+				collapsed ? 'chevron-right' : 'chevron-down',
+			);
+			heading.createSpan({ text: collapsed ? `${title} (${sorted.length})` : title });
 			if (group === this.shownSlot) {
 				heading.addClass('is-current');
 				this.remainingEl = heading.createSpan({ cls: 'daily-logging-remaining' });
 				this.updateRemaining(ctx);
 			}
+			const toggle = () => this.toggleGroup(title);
+			heading.addEventListener('click', toggle);
+			heading.addEventListener('keydown', (evt) => {
+				if (evt.key === 'Enter' || evt.key === ' ') {
+					evt.preventDefault();
+					toggle();
+				}
+			});
+			if (collapsed) continue;
 			const list = section.createEl('ul');
 
-			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
 			for (const item of groupByTag(sorted)) {
 				if (!('tag' in item)) {
 					this.renderTask(list, item, ctx);
@@ -270,6 +291,18 @@ export class TaskView extends ItemView {
 				for (const e of item.entries) this.renderTask(subList, e, ctx);
 			}
 		}
+	}
+
+	/** グループを閉じたり開いたりして、data.json に保存する */
+	private toggleGroup(title: string): void {
+		const settings = this.plugin.settings;
+		const collapsed = settings.collapsedGroups;
+		// 既定値の配列を書き換えないよう、新しい配列にする
+		settings.collapsedGroups = collapsed.includes(title)
+			? collapsed.filter((t) => t !== title)
+			: [...collapsed, title];
+		this.render();
+		void this.plugin.saveSettings().catch(reportError);
 	}
 
 	/** スキップボタンの表示を切り替えるボタンの、アイコン・ラベル・状態を今の設定に合わせる */
