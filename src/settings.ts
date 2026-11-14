@@ -24,6 +24,8 @@ export interface DailyLoggingSettings {
 	/** タスクのプロパティ名 */
 	cycleProp: string;
 	sectionProp: string;
+	/** タスク一覧で、グループの中をまとめるタグのリストプロパティ名 */
+	tagProp: string;
 	scheduledProp: string;
 	startProp: string;
 	endProp: string;
@@ -95,6 +97,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 
 	cycleProp: 'repeat',
 	sectionProp: 'section',
+	tagProp: 'tags',
 	scheduledProp: 'scheduled',
 	startProp: 'started',
 	endProp: 'ended',
@@ -257,6 +260,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Section property',
 						desc: 'Text property that holds the tag of a time slot.',
 						control: { type: 'text', key: 'sectionProp', placeholder: d.sectionProp },
+					},
+					{
+						name: 'Tag property',
+						desc: 'List property. Tasks whose first value is the same are grouped together within a time slot in the task list.',
+						control: { type: 'text', key: 'tagProp', placeholder: d.tagProp },
 					},
 					{
 						name: 'Scheduled property',

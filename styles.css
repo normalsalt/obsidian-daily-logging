@@ -50,6 +50,16 @@
 	margin-inline: calc(-1 * var(--size-4-2));
 }
 
+.daily-logging-subgroup-title {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	padding: var(--size-2-2) 0;
+}
+
+.daily-logging-tasks .daily-logging-subgroup > ul {
+	padding-inline-start: var(--size-4-4);
+}
+
 .daily-logging-task-meta {
 	color: var(--text-faint);
 	font-size: var(--font-ui-smaller);

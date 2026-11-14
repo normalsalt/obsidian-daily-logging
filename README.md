@@ -48,6 +48,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 | ----------- | ----------- | -------------------------------------------------------------- |
 | `repeat`    | List        | Days the task appears: `Every day`, `Workday`, `Holiday`, or weekdays such as `Monday` |
 | `section`   | Text        | Tag of the time slot to group the task under                   |
+| `tags`      | List        | Tasks with the same first tag are grouped together within a time slot |
 | `scheduled` | Date & time | Show the task on this day                                      |
 | `time`      | Text        | Time of day, such as `18:00`. Used like the time of `scheduled` when `scheduled` is empty |
 | `skipped`   | Date & time | Set by the plugin when you skip the task. Hides the task from the list on this day, unless it is running |
@@ -63,6 +64,8 @@ A task is shown when one of the following applies:
 A task scheduled for a later day is hidden until that day, even if it repeats today.
 
 A task whose `skipped` date is today is hidden for the day, before any of the rules above apply, unless it is running.
+
+Within each time slot, two or more tasks with the same first tag are shown together under the tag's name.
 
 Running tasks and the tasks in the current time slot are highlighted. A running task shows the time since it started, in place of its scheduled time.
 

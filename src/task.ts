@@ -12,6 +12,7 @@ export interface TaskPropNames {
 	end: string;
 	time: string;
 	skip: string;
+	tag: string;
 	location: string;
 }
 
@@ -28,6 +29,7 @@ export interface TaskProps {
 	end: Moment | null;
 	time: number | null; // 予定時刻（0:00 からの分）
 	skipped: TaskDate | null;
+	tag: string; // 1つ目のタグ（先頭の # は外す。なければ空）
 }
 
 export interface TaskContext {
@@ -86,6 +88,7 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 		end: toTaskDate(fm[names.end])?.value ?? null,
 		time: toMinutes(fm[names.time]),
 		skipped: toTaskDate(fm[names.skip]),
+		tag: (toStringList(fm[names.tag])[0] ?? '').replace(/^#/, ''),
 	};
 }
 
@@ -202,6 +205,39 @@ export function compareTasks(
 		compareMoment(a.props.start, b.props.start) ||
 		a.name.localeCompare(b.name)
 	);
+}
+
+/** 同じタグのタスクのまとまり */
+export interface TagGroup<T> {
+	tag: string;
+	entries: T[];
+}
+
+/**
+ * 並べ終えたタスクのうち、1つ目のタグが同じものが2つ以上あれば、最初のタスクの位置にまとめる。
+ * タグは大文字小文字を区別しない。見出しの文字は最初のタスクの表記
+ */
+export function groupByTag<T extends { props: TaskProps }>(sorted: T[]): (T | TagGroup<T>)[] {
+	const byTag = new Map<string, T[]>();
+	for (const e of sorted) {
+		const key = e.props.tag.toLowerCase();
+		if (key === '') continue;
+		byTag.set(key, [...(byTag.get(key) ?? []), e]);
+	}
+
+	const result: (T | TagGroup<T>)[] = [];
+	const placed = new Set<string>();
+	for (const e of sorted) {
+		const key = e.props.tag.toLowerCase();
+		const members = byTag.get(key);
+		if (!members || members.length < 2) {
+			result.push(e);
+		} else if (!placed.has(key)) {
+			placed.add(key);
+			result.push({ tag: e.props.tag, entries: members });
+		}
+	}
+	return result;
 }
 
 /** 開始日時・終了日時に書き込む形式（分単位） */

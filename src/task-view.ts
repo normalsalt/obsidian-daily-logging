@@ -9,6 +9,7 @@ import {
 	currentSlot,
 	effectiveScheduled,
 	formatDuration,
+	groupByTag,
 	groupOf,
 	isRunning,
 	isVisible,
@@ -243,10 +244,18 @@ export class TaskView extends ItemView {
 			}
 			const list = section.createEl('ul');
 
-			entries
-				.filter((e) => e.group === group)
-				.sort(compareTasks)
-				.forEach((e) => this.renderTask(list, e, ctx));
+			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
+			for (const item of groupByTag(sorted)) {
+				if (!('tag' in item)) {
+					this.renderTask(list, item, ctx);
+					continue;
+				}
+				// 同じタグのタスクは、タグ名の小見出しの下に字下げして並べる
+				const sub = list.createEl('li', { cls: 'daily-logging-subgroup' });
+				sub.createDiv({ cls: 'daily-logging-subgroup-title', text: item.tag });
+				const subList = sub.createEl('ul');
+				for (const e of item.entries) this.renderTask(subList, e, ctx);
+			}
 		}
 	}
 
