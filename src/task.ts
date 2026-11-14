@@ -158,6 +158,9 @@ export function isVisible(t: TaskProps, ctx: TaskContext): boolean {
 export function groupOf(t: TaskProps, ctx: TaskContext): number {
 	if (isRunning(t)) return GROUP_RUNNING;
 
+	// 予定日を過ぎたタスクは、セクションも無視して「その他」に入れる
+	if (t.scheduled && scheduledDay(t.scheduled, ctx).isBefore(ctx.today, 'day')) return GROUP_OTHER;
+
 	// 今日の予定日時（空なら予定時刻）に時刻があれば、その時刻の時間帯
 	const scheduled = effectiveScheduled(t, ctx);
 	if (scheduled?.hasTime && scheduledDay(scheduled, ctx).isSame(ctx.today, 'day')) {
