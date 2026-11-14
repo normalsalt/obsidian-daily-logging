@@ -82,6 +82,8 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 
 When you start a task, the unchecked checkboxes under the **Steps heading** of the task's note (default: `Steps`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines.
 
+If the `location` property of a task has a URL or an internal link, it is shown in a popup when you start the task, so you can open it right away. Press Enter to open the first link, or Esc to close the popup. You can turn this off with **Show links when a task starts** in the settings.
+
 To hide the skip buttons, use the button at the top of the task list. You can still use the **Skip task** command while they are hidden.
 
 Each button shows an icon and its label. You can choose the icons in the **Buttons** settings, by the name of a built-in icon such as `play`. To show only the icons, turn off **Show text on buttons**. A button without an icon always shows its label.

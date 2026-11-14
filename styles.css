@@ -99,3 +99,17 @@
 	color: var(--text-error);
 	font-size: var(--font-ui-small);
 }
+
+/* 開始時に出すリンクのモーダル。長い URL でも1行ずつ並べる */
+.daily-logging-links {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.daily-logging-links button {
+	justify-content: flex-start;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

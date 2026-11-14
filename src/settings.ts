@@ -52,6 +52,8 @@ export interface DailyLoggingSettings {
 	logSkip: boolean;
 	/** タスクを記録したら、デイリーノートの追記した行を表示する */
 	openDailyNote: boolean;
+	/** タスクを開始したら、場所のプロパティの URL と内部リンクをモーダルで出す */
+	showLinksOnStart: boolean;
 
 	/** タスク一覧のボタンに、アイコンの右に文字も出す */
 	showButtonText: boolean;
@@ -115,6 +117,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	stepsHeading: 'Steps',
 	logSkip: true,
 	openDailyNote: true,
+	showLinksOnStart: true,
 
 	showButtonText: true,
 	showSkipButtons: true,
@@ -356,6 +359,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						desc: 'After you start, interrupt, end, or skip a task, open the daily note and move the cursor to the new line, or to the bullet under it.',
 						control: { type: 'toggle', key: 'openDailyNote' },
 					},
+					{
+						name: 'Show links when a task starts',
+						desc: 'When you start a task whose location property has a URL or an internal link, show it in a popup so you can open it right away.',
+						control: { type: 'toggle', key: 'showLinksOnStart' },
+					},
 				],
 			},
 			{
@@ -446,7 +454,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Location property',
-						desc: 'Text property that holds the location of an event.',
+						desc: 'Text property that holds the location of an event. Its URLs and links are shown when the task starts.',
 						control: { type: 'text', key: 'locationProp', placeholder: d.locationProp },
 					},
 				],

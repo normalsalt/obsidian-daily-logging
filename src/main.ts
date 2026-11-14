@@ -37,6 +37,7 @@ import {
 import type { Moment, TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
+import { LinkModal, findLinks } from './link-modal';
 
 /** 作成から何ミリ秒以内に開かれたら記録するか */
 const OPEN_WINDOW_MS = 5000;
@@ -291,9 +292,11 @@ export default class DailyLoggingPlugin extends Plugin {
 		const now = moment();
 		const names = this.taskPropNames();
 		const updated = this.waitForMetadata(file); // 書き換えより前に待ち始める
+		const before: { location: unknown } = { location: null };
 
 		// フロントマターがなければ、processFrontMatter が作る
 		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			before.location = fm[names.location];
 			fm[names.start] = now.format(PROP_DATE_FORMAT);
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
@@ -302,6 +305,10 @@ export default class DailyLoggingPlugin extends Plugin {
 		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, steps);
 		await updated;
 		await this.showLoggedLine(await logged, steps.length > 0 || this.settings.childBullet);
+
+		// 場所のプロパティに URL か内部リンクがあれば、すぐ開けるように出す
+		const links = this.settings.showLinksOnStart ? findLinks(before.location) : [];
+		if (links.length > 0) new LinkModal(this.app, file.basename, links, file.path).open();
 	}
 
 	/** タスクのノートの、ステップの見出しの下にある未チェックのチェックボックス（1段インデント済み） */
