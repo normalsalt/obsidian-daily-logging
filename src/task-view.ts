@@ -16,7 +16,7 @@ import {
 	scheduledDay,
 	slotEnd,
 } from './task';
-import type { TaskContext, TaskDate, TaskProps } from './task';
+import type { Moment, TaskContext, TaskDate, TaskProps } from './task';
 import { firstOpenItem } from './time-slots';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
@@ -49,6 +49,9 @@ export class TaskView extends ItemView {
 
 	/** 今の時間帯の見出しの、残り時間を書く場所（見出しが出ていなければ null） */
 	private remainingEl: HTMLElement | null = null;
+
+	/** 実行中のタスクの、経過時間を書く場所と開始日時 */
+	private elapsedEls: { el: HTMLElement; start: Moment }[] = [];
 
 	/** ノートから読んだ表示名（パスごと。読んだときの更新日時と見出し名が同じ間だけ使う） */
 	private titles = new Map<string, { mtime: number; heading: string; title: string | null }>();
@@ -141,7 +144,7 @@ export class TaskView extends ItemView {
 				) {
 					this.render();
 				} else {
-					this.updateRemaining(ctx);
+					this.updateTimers(ctx);
 				}
 			}, 10_000),
 		);
@@ -216,6 +219,7 @@ export class TaskView extends ItemView {
 		this.shownAvailable = getDailyNotes(this.app) !== null;
 		this.shownSlot = currentSlot(ctx, moment());
 		this.remainingEl = null;
+		this.elapsedEls = [];
 		root.empty();
 
 		if (!this.shownAvailable) {
@@ -245,6 +249,13 @@ export class TaskView extends ItemView {
 		}
 	}
 
+	/** 残り時間と、実行中のタスクの経過時間を書き換える */
+	private updateTimers(ctx: TaskContext): void {
+		this.updateRemaining(ctx);
+		const now = moment();
+		for (const { el, start } of this.elapsedEls) el.setText(formatDuration(start, now));
+	}
+
 	/** 今の時間帯の残り時間を書き換える。終わりを過ぎていれば 00:00 */
 	private updateRemaining(ctx: TaskContext): void {
 		if (!this.remainingEl || this.shownSlot === null) return;
@@ -261,9 +272,16 @@ export class TaskView extends ItemView {
 			void this.app.workspace.getLeaf(Keymap.isModEvent(evt)).openFile(entry.file);
 		});
 
-		// 今日の予定時刻があれば表示する
+		// 実行中なら開始からの経過時間、そうでなければ今日の予定時刻を表示する
 		const s = entry.scheduled;
-		if (s?.hasTime && scheduledDay(s, ctx).isSame(ctx.today, 'day')) {
+		const start = isRunning(entry.props) ? entry.props.start : null;
+		if (start) {
+			const el = item.createSpan({
+				cls: ['daily-logging-task-meta', 'daily-logging-elapsed'],
+				text: formatDuration(start, moment()),
+			});
+			this.elapsedEls.push({ el, start });
+		} else if (s?.hasTime && scheduledDay(s, ctx).isSame(ctx.today, 'day')) {
 			item.createSpan({ cls: 'daily-logging-task-meta', text: s.value.format('HH:mm') });
 		}
 

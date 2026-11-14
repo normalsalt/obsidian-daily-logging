@@ -55,6 +55,10 @@
 	font-size: var(--font-ui-smaller);
 }
 
+.daily-logging-elapsed {
+	font-variant-numeric: tabular-nums;
+}
+
 .daily-logging-task-button {
 	flex: none;
 	font-size: var(--font-ui-smaller);

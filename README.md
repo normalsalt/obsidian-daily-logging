@@ -64,7 +64,7 @@ A task scheduled for a later day is hidden until that day, even if it repeats to
 
 A task whose `skipped` date is today is hidden for the day, before any of the rules above apply, unless it is running.
 
-Running tasks and the tasks in the current time slot are highlighted.
+Running tasks and the tasks in the current time slot are highlighted. A running task shows the time since it started, in place of its scheduled time.
 
 If a task's note has unchecked checkboxes under the **Title heading** (default: `Tasks`), the list shows the first one instead of the file name, even if it is nested under another item. Links and formatting such as bold are shown as plain text.
 
