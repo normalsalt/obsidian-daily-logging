@@ -258,6 +258,48 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				heading: 'Tasks',
 				items: [
 					{
+						name: 'Resume after interruption',
+						desc: 'Minutes from an interruption to the scheduled time for resuming the task.',
+						control: {
+							type: 'text',
+							key: 'resumeMinutes',
+							placeholder: d.resumeMinutes,
+							validate: (value) =>
+								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
+						},
+					},
+					{
+						name: 'Title heading',
+						desc: "In the task list, show the first unchecked checkbox under this heading in the task's note, instead of the file name. Leave empty to always show the file name.",
+						control: { type: 'text', key: 'titleHeading', placeholder: d.titleHeading },
+					},
+					{
+						name: 'Steps heading',
+						desc: "When you start a task, the unchecked checkboxes under this heading in the task's note are copied under the entry, instead of an empty bullet. Leave empty to turn off.",
+						control: { type: 'text', key: 'stepsHeading', placeholder: d.stepsHeading },
+					},
+					{
+						name: 'Log skipped tasks',
+						desc: 'When you skip a task, log it to the daily note, so you can write the reason under it. The skip property is set either way.',
+						control: { type: 'toggle', key: 'logSkip' },
+					},
+					{
+						name: 'Show the logged line',
+						desc: 'After you start, interrupt, end, or skip a task, open the daily note and move the cursor to the new line, or to the bullet under it.',
+						control: { type: 'toggle', key: 'openDailyNote' },
+					},
+					{
+						name: 'Show links when a task starts',
+						desc: 'When you start a task whose location property has a URL or an internal link, show it in a popup so you can open it right away.',
+						control: { type: 'toggle', key: 'showLinksOnStart' },
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Task properties',
+				items: [
+					{
 						name: 'Repeat property',
 						desc: 'List property that holds the days a task appears in the sidebar.',
 						control: { type: 'text', key: 'cycleProp', placeholder: d.cycleProp },
@@ -298,6 +340,17 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						control: { type: 'text', key: 'endProp', placeholder: d.endProp },
 					},
 					{
+						name: 'Location property',
+						desc: 'Text property that holds the location of an event. Its URLs and links are shown when the task starts.',
+						control: { type: 'text', key: 'locationProp', placeholder: d.locationProp },
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Repeat values',
+				items: [
+					{
 						name: 'Every day value',
 						desc: 'Repeat value that matches every day.',
 						control: { type: 'text', key: 'everydayValue', placeholder: d.everydayValue },
@@ -327,42 +380,6 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Holiday note',
 						desc: 'Name of the note whose scheduled date marks today as a holiday. Leave empty to treat every day as a workday.',
 						control: { type: 'text', key: 'holidayNote' },
-					},
-					{
-						name: 'Resume after interruption',
-						desc: 'Minutes from an interruption to the scheduled time for resuming the task.',
-						control: {
-							type: 'text',
-							key: 'resumeMinutes',
-							placeholder: d.resumeMinutes,
-							validate: (value) =>
-								/^\s*\d+\s*$/.test(value) ? '' : 'Enter a whole number of minutes.',
-						},
-					},
-					{
-						name: 'Title heading',
-						desc: "In the task list, show the first unchecked checkbox under this heading in the task's note, instead of the file name. Leave empty to always show the file name.",
-						control: { type: 'text', key: 'titleHeading', placeholder: d.titleHeading },
-					},
-					{
-						name: 'Steps heading',
-						desc: "When you start a task, the unchecked checkboxes under this heading in the task's note are copied under the entry, instead of an empty bullet. Leave empty to turn off.",
-						control: { type: 'text', key: 'stepsHeading', placeholder: d.stepsHeading },
-					},
-					{
-						name: 'Log skipped tasks',
-						desc: 'When you skip a task, log it to the daily note, so you can write the reason under it. The skip property is set either way.',
-						control: { type: 'toggle', key: 'logSkip' },
-					},
-					{
-						name: 'Show the logged line',
-						desc: 'After you start, interrupt, end, or skip a task, open the daily note and move the cursor to the new line, or to the bullet under it.',
-						control: { type: 'toggle', key: 'openDailyNote' },
-					},
-					{
-						name: 'Show links when a task starts',
-						desc: 'When you start a task whose location property has a URL or an internal link, show it in a popup so you can open it right away.',
-						control: { type: 'toggle', key: 'showLinksOnStart' },
 					},
 				],
 			},
@@ -451,11 +468,6 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Token',
 						desc: 'Secret that holds the token for the web app.',
 						control: { type: 'secret', key: 'calendarToken' },
-					},
-					{
-						name: 'Location property',
-						desc: 'Text property that holds the location of an event. Its URLs and links are shown when the task starts.',
-						control: { type: 'text', key: 'locationProp', placeholder: d.locationProp },
 					},
 				],
 			},
