@@ -100,6 +100,11 @@ export default class DailyLoggingPlugin extends Plugin {
 			checkCallback: (checking) => this.taskCommand(checking, true, (f) => this.interruptTask(f)),
 		});
 		this.addCommand({
+			id: 'skip-task',
+			name: 'Skip task',
+			checkCallback: (checking) => this.taskCommand(checking, false, (f) => this.skipTask(f)),
+		});
+		this.addCommand({
 			id: 'fetch-calendar-events',
 			name: 'Fetch calendar events',
 			checkCallback: (checking) => {
@@ -349,6 +354,25 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.showLoggedLine(await logged, this.settings.childBullet);
 	}
 
+	/** タスクをスキップする。スキップ日時を書き込み、設定がオンならデイリーノートに記録する */
+	async skipTask(file: TFile): Promise<void> {
+		const log = this.settings.logSkip;
+		if (log && !this.ensureDailyNotes()) return;
+
+		const now = moment();
+		const names = this.taskPropNames();
+		const updated = this.waitForMetadata(file);
+
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			fm[names.skip] = now.format(PROP_DATE_FORMAT);
+		});
+
+		// 理由を書けるよう、記録の下のバレットにカーソルを置く
+		const logged = log ? this.logEntry(file, now, ` ${this.taskLabels().skip}`) : null;
+		await updated;
+		await this.showLoggedLine(await logged, this.settings.childBullet);
+	}
+
 	/**
 	 * 設定がオンなら、デイリーノートを前に出し（開いていなければ新しいタブで開く）、
 	 * 追記した行の下の行（below が false なら追記した行）の末尾にカーソルを置く
@@ -513,6 +537,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		start: string;
 		end: string;
 		interrupt: string;
+		skip: string;
 		running: string;
 		other: string;
 	} {
@@ -524,6 +549,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			start: pick(s.startLabel, d.startLabel),
 			end: pick(s.endLabel, d.endLabel),
 			interrupt: pick(s.interruptLabel, d.interruptLabel),
+			skip: pick(s.skipLabel, d.skipLabel),
 			running: pick(s.runningGroupLabel, d.runningGroupLabel),
 			other: pick(s.otherGroupLabel, d.otherGroupLabel),
 		};

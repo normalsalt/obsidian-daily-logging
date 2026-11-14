@@ -50,7 +50,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 | `section`   | Text        | Tag of the time slot to group the task under                   |
 | `scheduled` | Date & time | Show the task on this day                                      |
 | `time`      | Text        | Time of day, such as `18:00`. Used like the time of `scheduled` when `scheduled` is empty |
-| `skipped`   | Date & time | Hide the task from the list on this day, unless it is running  |
+| `skipped`   | Date & time | Set by the plugin when you skip the task. Hides the task from the list on this day, unless it is running |
 | `started`   | Date & time | Set by the plugin when you start the task                      |
 | `ended`     | Date & time | Set by the plugin when you end or interrupt the task           |
 
@@ -75,12 +75,13 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 | Start     | Sets `started` and logs it. Works on any Markdown file, even one without properties.               |
 | End       | Sets `ended` and logs it with the time spent. Clears `scheduled`.                                  |
 | Interrupt | Sets `ended` and logs it with the time spent. Sets `scheduled` to 15 minutes later, so the task stays in the list. |
+| Skip      | Sets `skipped` and logs it, so you can write the reason under it. The task is hidden until the next day. |
 
 When you start a task, the unchecked checkboxes under the **Steps heading** of the task's note (default: `Steps`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines.
 
-The **Start task**, **End task**, and **Interrupt task** commands work on the file that is currently open. You can assign hotkeys to them.
+The **Start task**, **End task**, **Interrupt task**, and **Skip task** commands work on the file that is currently open. You can assign hotkeys to them.
 
-After you start, interrupt, or end a task, the daily note opens in a new tab, with the cursor on the bullet under the new line (or on the new line, if the bullet is turned off). If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings.
+After you start, interrupt, end, or skip a task, the daily note opens in a new tab, with the cursor on the bullet under the new line (or on the new line, if the bullet is turned off). If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings. To skip a task without logging it, turn off **Log skipped tasks**.
 
 ## Calendar events
 

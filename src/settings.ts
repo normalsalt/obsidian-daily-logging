@@ -46,6 +46,8 @@ export interface DailyLoggingSettings {
 	titleHeading: string;
 	/** 開始時に、タスクのノートのこの見出しの下の未チェックのチェックボックスをコピーする。空ならしない */
 	stepsHeading: string;
+	/** スキップしたら、デイリーノートに記録する */
+	logSkip: boolean;
 	/** タスクを記録したら、デイリーノートの追記した行を表示する */
 	openDailyNote: boolean;
 
@@ -54,6 +56,7 @@ export interface DailyLoggingSettings {
 	startLabel: string;
 	endLabel: string;
 	interruptLabel: string;
+	skipLabel: string;
 	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
@@ -97,12 +100,14 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	resumeMinutes: '15',
 	titleHeading: 'Tasks',
 	stepsHeading: 'Steps',
+	logSkip: true,
 	openDailyNote: true,
 
 	createLabel: 'created',
 	startLabel: 'started',
 	endLabel: 'ended',
 	interruptLabel: 'interrupted',
+	skipLabel: 'skipped',
 	runningGroupLabel: 'Running',
 	otherGroupLabel: 'Other',
 
@@ -240,7 +245,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Skip property',
-						desc: 'Date & time property. If it is today, the task is hidden from the sidebar for the day, unless it is running.',
+						desc: 'Date & time property set when a task is skipped. If it is today, the task is hidden from the sidebar for the day, unless it is running.',
 						control: { type: 'text', key: 'skipProp', placeholder: d.skipProp },
 					},
 					{
@@ -306,8 +311,13 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						control: { type: 'text', key: 'stepsHeading', placeholder: d.stepsHeading },
 					},
 					{
+						name: 'Log skipped tasks',
+						desc: 'When you skip a task, log it to the daily note, so you can write the reason under it. The skip property is set either way.',
+						control: { type: 'toggle', key: 'logSkip' },
+					},
+					{
 						name: 'Show the logged line',
-						desc: 'After you start, interrupt, or end a task, open the daily note and move the cursor to the new line, or to the bullet under it.',
+						desc: 'After you start, interrupt, end, or skip a task, open the daily note and move the cursor to the new line, or to the bullet under it.',
 						control: { type: 'toggle', key: 'openDailyNote' },
 					},
 				],
@@ -335,6 +345,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Interrupt label',
 						desc: 'Word written after the link when a task is interrupted.',
 						control: { type: 'text', key: 'interruptLabel', placeholder: d.interruptLabel },
+					},
+					{
+						name: 'Skip label',
+						desc: 'Word written after the link when a task is skipped.',
+						control: { type: 'text', key: 'skipLabel', placeholder: d.skipLabel },
 					},
 					{
 						name: 'Running group name',

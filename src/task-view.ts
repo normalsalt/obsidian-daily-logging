@@ -285,7 +285,7 @@ export class TaskView extends ItemView {
 			item.createSpan({ cls: 'daily-logging-task-meta', text: s.value.format('HH:mm') });
 		}
 
-		// 実行中なら「中断」「終了」、それ以外なら「開始」を表示する
+		// 実行中なら「中断」「終了」、それ以外なら「開始」「スキップ」を表示する
 		const labels = this.plugin.taskLabels();
 		const file = entry.file;
 		const actions: { label: string; run: () => Promise<void> }[] = isRunning(entry.props)
@@ -293,7 +293,10 @@ export class TaskView extends ItemView {
 					{ label: labels.interrupt, run: () => this.plugin.interruptTask(file) },
 					{ label: labels.end, run: () => this.plugin.endTask(file) },
 				]
-			: [{ label: labels.start, run: () => this.plugin.startTask(file) }];
+			: [
+					{ label: labels.start, run: () => this.plugin.startTask(file) },
+					{ label: labels.skip, run: () => this.plugin.skipTask(file) },
+				];
 
 		const buttons: HTMLButtonElement[] = [];
 		for (const action of actions) {
