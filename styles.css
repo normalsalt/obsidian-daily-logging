@@ -1,15 +1,13 @@
 /*
- * Obsidian Bases のテーブル（グループ表示）にならう。Bases の変数をそのまま使い、
- * テーマが Bases のテーブルを変えていれば、こちらにも同じように効くようにする
+ * コアプラグイン「検索」の検索結果にならう。セクション名はファイル名の行（ツリーの項目）、
+ * グループのタスクは一致箇所の枠と同じにする。Obsidian の変数をそのまま使い、テーマの指定も効くようにする
  */
 .daily-logging-list {
-	--daily-logging-row-height: var(--bases-table-row-height, 30px);
-	--daily-logging-font-size: var(--bases-table-font-size, var(--font-smaller));
 	/* タグのまとまりと実行中のタスクの、左端の縦線の太さ */
 	--daily-logging-group-line: 4px;
-	display: flex;
-	flex-direction: column;
-	gap: var(--bases-table-group-gap, 10px);
+	/* 行の左右の余白（検索の一致箇所の左の余白） */
+	--daily-logging-row-padding: var(--size-4-3);
+	padding: var(--size-4-1) var(--size-4-3) var(--size-4-4);
 }
 
 /*
@@ -30,34 +28,49 @@
 	gap: var(--size-2-1);
 }
 
-/* セクション名は、Bases のグループの見出しと同じく、テーブルの外の上に置く */
-.daily-logging-tasks h4 {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-1);
-	height: var(--daily-logging-row-height);
-	margin: 0;
-	padding-inline: var(--size-4-2);
-	font-size: var(--daily-logging-font-size);
-	font-weight: var(--font-semibold);
-	color: var(--text-normal);
-	cursor: pointer;
-}
-
 /* 開けるものがないデイリーノートの移動ボタン */
 .daily-logging-tasks .nav-action-button.is-disabled {
 	opacity: 0.4;
 	cursor: default;
 }
 
-.daily-logging-group-chevron {
+/* セクション名は、検索結果のファイル名の行（ツリーの項目）と同じ。左の余白に開閉のアイコンを置く */
+.daily-logging-tasks h4 {
+	position: relative;
 	display: flex;
+	align-items: center;
+	margin: 0;
+	padding: var(--nav-item-padding);
+	border-radius: var(--nav-item-radius);
+	font-size: var(--nav-item-size);
+	font-weight: var(--nav-item-weight);
+	line-height: var(--line-height-tight);
+	color: var(--nav-item-color-active);
+	cursor: pointer;
+}
+
+.daily-logging-tasks h4:hover {
+	color: var(--nav-item-color-hover);
+	background-color: var(--nav-item-background-hover);
+}
+
+.daily-logging-group-chevron {
+	position: absolute;
+	inset-inline-start: var(--size-2-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-4);
+	color: var(--icon-color);
+	opacity: var(--icon-opacity);
 	--icon-size: var(--icon-xs);
 }
 
-/* 今の時間帯の残り時間は、実行中のタスクの経過時間と同じく、アクセント色の太字にする */
+/* 今の時間帯の残り時間は、ツリーの項目の右端の数字の位置に、実行中の経過時間と同じアクセント色の太字で出す */
 .daily-logging-remaining {
 	margin-inline-start: auto;
+	padding-inline-start: var(--size-4-1);
+	font-size: var(--font-ui-smaller);
 	color: var(--text-accent);
 	font-weight: var(--font-semibold);
 	font-variant-numeric: tabular-nums;
@@ -69,38 +82,37 @@
 	padding: 0;
 }
 
-/*
- * グループのタスクはテーブルにする。Bases のビューと同じく、周りの余白・左右の枠・角丸はなく、
- * サイドバーの幅いっぱいに広げる。上下にだけ線を引く。行の背景は、Bases のテーブルの本体と同じ
- */
+/* グループのタスクは、検索結果の一致箇所と同じ枠に入れる（角丸の中に行の背景を収める） */
 .daily-logging-group > ul {
-	border-block: var(--border-width, 1px) solid
-		var(--table-border-color, var(--background-modifier-border));
-	background-color: var(--background-primary);
+	margin: var(--size-4-1) 0 var(--size-4-2);
+	border-radius: var(--radius-s);
 	overflow: hidden;
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-tight);
+	color: var(--text-muted);
+	background-color: var(--search-result-background, var(--background-primary));
+	box-shadow: 0 0 0 var(--border-width) var(--background-modifier-border);
 }
 
 /*
- * 行（タグ名とタスク）。区切りは Bases と同じく、各行の上に引く影。
- * テーブルの最初の行の線は、テーブルの枠の外に出るので見えない
+ * 行（タグ名とタスク）は、検索結果の一致箇所と同じ余白。区切りは各行の上の線
+ * （枠の最初の行の線は、枠の外に出て見えない）
  */
 .daily-logging-subgroup-title,
 .daily-logging-task {
 	display: flex;
 	align-items: center;
-	box-sizing: border-box;
-	height: var(--daily-logging-row-height);
-	padding-inline: var(--size-4-2);
-	font-size: var(--daily-logging-font-size);
-	box-shadow: 0 -1px 0 var(--table-border-color, var(--background-modifier-border));
+	padding: var(--size-4-2) var(--daily-logging-row-padding);
+	box-shadow: 0 calc(var(--border-width) * -1) 0 var(--background-modifier-border);
 }
 
 .daily-logging-task {
 	gap: var(--size-4-2);
 }
 
+/* マウスを乗せると文字だけ濃くする（行の背景は変えない。押せるのはボタン） */
 .daily-logging-task:hover {
-	background-color: var(--bases-table-row-background-hover, var(--table-row-background-hover));
+	color: var(--text-normal);
 }
 
 .daily-logging-task-name {
@@ -114,10 +126,14 @@
 
 /*
  * 今の時間帯のグループの行は、ごく薄いアクセント色の背景（実行中より薄い）。
- * テーブルの本体と同じ --background-primary に混ぜ、ほかのグループの行より少しだけ色付ける
+ * 枠の中と同じ背景に混ぜ、ほかのグループの行より少しだけ色付ける
  */
 .daily-logging-group:has(> h4.is-current) .daily-logging-task {
-	background-color: color-mix(in srgb, var(--interactive-accent) 6%, var(--background-primary));
+	background-color: color-mix(
+		in srgb,
+		var(--interactive-accent) 6%,
+		var(--search-result-background, var(--background-primary))
+	);
 }
 
 /*
@@ -126,16 +142,16 @@
  */
 .daily-logging-subgroup .daily-logging-subgroup-title,
 .daily-logging-subgroup .daily-logging-task {
-	padding-inline-start: calc(var(--size-4-2) + var(--daily-logging-group-line));
+	padding-inline-start: calc(var(--daily-logging-row-padding) + var(--daily-logging-group-line));
 	box-shadow:
 		inset var(--daily-logging-group-line) 0 0 var(--background-modifier-border-hover),
-		0 -1px 0 var(--table-border-color, var(--background-modifier-border));
+		0 calc(var(--border-width) * -1) 0 var(--background-modifier-border);
 }
 
-/* タグ名の行は、Bases のグループ名の行と同じ背景 */
+/* タグ名の行は、少し沈んだ背景で区別する */
 .daily-logging-subgroup-title {
-	color: var(--text-muted);
-	background-color: var(--bases-table-group-background, var(--background-primary-alt));
+	color: var(--text-faint);
+	background-color: var(--background-primary-alt);
 }
 
 .daily-logging-task-meta {
@@ -152,11 +168,15 @@
  * 経過時間はアクセント色の太字にする
  */
 .daily-logging-tasks .daily-logging-task.is-running {
-	padding-inline-start: calc(var(--size-4-2) + var(--daily-logging-group-line));
-	background-color: color-mix(in srgb, var(--interactive-accent) 15%, var(--background-primary));
+	padding-inline-start: calc(var(--daily-logging-row-padding) + var(--daily-logging-group-line));
+	background-color: color-mix(
+		in srgb,
+		var(--interactive-accent) 15%,
+		var(--search-result-background, var(--background-primary))
+	);
 	box-shadow:
 		inset var(--daily-logging-group-line) 0 0 var(--interactive-accent),
-		0 -1px 0 var(--table-border-color, var(--background-modifier-border));
+		0 calc(var(--border-width) * -1) 0 var(--background-modifier-border);
 }
 
 .daily-logging-task-meta.daily-logging-elapsed {
@@ -164,7 +184,7 @@
 	font-weight: var(--font-semibold);
 }
 
-/* ボタンは中身に合わせた高さにする */
+/* ボタンは中身に合わせた高さにし、文字は行と同じ大きさにする */
 .daily-logging-task-button {
 	flex: none;
 	display: inline-flex;
@@ -172,7 +192,7 @@
 	gap: var(--size-2-2);
 	height: auto;
 	padding: var(--size-2-1) var(--size-4-2);
-	font-size: var(--daily-logging-font-size);
+	font-size: inherit;
 }
 
 .daily-logging-task-button-icon {
@@ -180,10 +200,15 @@
 	--icon-size: var(--icon-xs);
 }
 
-/* 一覧の周りには余白がないので、文の左右にだけ空ける */
-.daily-logging-empty,
-.daily-logging-warning {
-	padding-inline: var(--size-4-2);
+/* ボタンにマウスを乗せたら、アクセント色で塗って押せることを示す */
+.daily-logging-task-button:hover:not(:disabled) {
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	cursor: pointer;
+}
+
+.daily-logging-task-button:active:not(:disabled) {
+	background-color: var(--interactive-accent-hover);
 }
 
 .daily-logging-empty {
