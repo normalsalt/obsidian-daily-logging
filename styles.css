@@ -130,6 +130,12 @@
 	cursor: pointer;
 }
 
+/* 省略された名前は、マウスを乗せている間だけ折り返して全文を出す */
+.daily-logging-task-name:hover {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
 /*
  * 今の時間帯のグループの行は、ごく薄いアクセント色の背景（実行中より薄い）。
  * 枠の中と同じ背景に混ぜ、ほかのグループの行より少しだけ色付ける
