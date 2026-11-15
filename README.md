@@ -80,7 +80,7 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 | Start     | Sets `started` and logs it. Works on any Markdown file, even one without properties.               |
 | End       | Sets `ended` and logs it with the time spent. Clears `scheduled`.                                  |
 | Interrupt | Sets `ended` and logs it with the time spent. Sets `scheduled` to 15 minutes later, so the task stays in the list. |
-| Skip      | Sets `skipped` and logs it, so you can write the reason under it. The task is hidden until the next day. |
+| Skip      | Sets `skipped`, clears `scheduled` like End, and logs it, so you can write the reason under it. The task is hidden until the next day. |
 
 If you forgot to press a button, right-click the task in the list (long-press on mobile), or use a command on the open note. The times you don't know are written as `??:??`.
 

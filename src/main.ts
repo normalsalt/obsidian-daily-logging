@@ -434,7 +434,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.showLoggedLine(await logged, this.settings.childBullet);
 	}
 
-	/** タスクをスキップする。スキップ日時を書き込み、設定がオンならデイリーノートに記録する */
+	/** タスクをスキップする。スキップ日時を書き込み、予定日時の値を空にし、設定がオンならデイリーノートに記録する */
 	async skipTask(file: TFile): Promise<void> {
 		const log = this.settings.logSkip;
 		if (log && !this.ensureDailyNotes()) return;
@@ -445,6 +445,7 @@ export default class DailyLoggingPlugin extends Plugin {
 
 		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			fm[names.skip] = now.format(PROP_DATE_FORMAT);
+			if (names.scheduled in fm) fm[names.scheduled] = null; // 予定を取り消す。値だけ空にする（終了と同じ）
 		});
 
 		// 理由を書けるよう、記録の下のバレットにカーソルを置く
