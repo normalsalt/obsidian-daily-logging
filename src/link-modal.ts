@@ -76,20 +76,53 @@ export class LinkModal extends Modal {
 			return a;
 		});
 
-		const row = this.contentEl.createDiv({ cls: 'modal-button-container' });
-		row.createEl('button', { text: 'Open note' }).addEventListener('click', () => {
-			this.close();
-			void this.app.workspace.getLeaf('tab').openFile(this.file);
-		});
-		row.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close());
+		addNoteButtons(this, this.file);
 
 		// 1つ目のリンクにフォーカスし、Enter で開けるようにする
 		anchors[0]?.focus();
 	}
 
 	onClose(): void {
-		this.contentEl.empty();
-		// 開始後に出したデイリーノートのカーソルへ、そのまま戻れるようにする
-		this.app.workspace.getActiveViewOfType(MarkdownView)?.editor.focus();
+		closeNoteModal(this);
 	}
+}
+
+/** 周期のないタスクをスキップしたときに、もう一覧に出ないことを知らせるモーダル */
+export class SkipWarningModal extends Modal {
+	constructor(
+		app: App,
+		private file: TFile,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		this.setTitle(this.file.basename);
+		this.contentEl.createEl('p', {
+			text: "This task doesn't repeat, so it won't appear in the task list again until you set a scheduled date.",
+		});
+		addNoteButtons(this, this.file).focus();
+	}
+
+	onClose(): void {
+		closeNoteModal(this);
+	}
+}
+
+/** 「ノートを開く」と「閉じる」のボタンを並べる。ノートを開くボタンを返す */
+function addNoteButtons(modal: Modal, file: TFile): HTMLButtonElement {
+	const row = modal.contentEl.createDiv({ cls: 'modal-button-container' });
+	const open = row.createEl('button', { text: 'Open note' });
+	open.addEventListener('click', () => {
+		modal.close();
+		void modal.app.workspace.getLeaf('tab').openFile(file);
+	});
+	row.createEl('button', { text: 'Close' }).addEventListener('click', () => modal.close());
+	return open;
+}
+
+function closeNoteModal(modal: Modal): void {
+	modal.contentEl.empty();
+	// 記録の後に出したデイリーノートのカーソルへ、そのまま戻れるようにする
+	modal.app.workspace.getActiveViewOfType(MarkdownView)?.editor.focus();
 }

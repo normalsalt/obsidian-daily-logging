@@ -94,6 +94,8 @@ When you start a task, the unchecked checkboxes under the **Steps heading** of t
 
 If the `location` property of a task has a URL or an internal link, it is shown in a popup when you start the task, so you can open it right away. The popup also has a button to open the task's note. Press Enter to open the first link, or Esc to close the popup. You can turn this off with **Show links when a task starts** in the settings.
 
+If you skip a task without `repeat` days, a popup tells you that it won't appear in the list again until you set `scheduled`, with a button to open the task's note.
+
 To hide the skip buttons, use the button at the top of the task list. You can still use the **Skip task** command while they are hidden.
 
 Each button shows an icon and its label. You can choose the icons in the **Buttons** settings, by the name of a built-in icon such as `play`. To show only the icons, turn off **Show text on buttons**. A button without an icon always shows its label.
