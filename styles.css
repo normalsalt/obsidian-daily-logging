@@ -154,8 +154,10 @@
 		0 calc(var(--border-width) * -1) 0 var(--background-modifier-border);
 }
 
-/* タグ名の行は、少し沈んだ背景で区別する */
-.daily-logging-subgroup-title {
+/* タグ名の行は、少し沈んだ背景で区別し、文字を一回り小さく、高さを少し細くする */
+.daily-logging-tasks .daily-logging-subgroup-title {
+	padding-block: var(--size-2-3);
+	font-size: 0.9em;
 	color: var(--text-faint);
 	background-color: var(--background-primary-alt);
 }
