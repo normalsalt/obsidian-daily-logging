@@ -12,9 +12,17 @@
 	gap: var(--bases-table-group-gap, 10px);
 }
 
-/* 上部のボタンは、中央に詰めて並べる */
+/*
+ * ビューの本体の既定の余白（上下左右 12px）は、ファイルエクスプローラーや Bases と同じく消す。
+ * 下だけは、最後の行がサイドバーの下端に詰まらないよう空ける
+ */
+.workspace-leaf-content .view-content.daily-logging-tasks {
+	padding: 0 0 var(--size-4-8);
+}
+
+/* 上部のボタンは、ファイルエクスプローラーと同じ余白で、中央に詰めて並べる */
 .daily-logging-tasks .nav-header {
-	padding: var(--size-2-2) var(--size-2-2) 0;
+	padding: var(--size-4-2);
 }
 
 .daily-logging-tasks .nav-buttons-container {
