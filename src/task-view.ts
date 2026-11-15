@@ -50,6 +50,9 @@ export class TaskView extends ItemView {
 	/** スキップボタンの表示を切り替える、上部のボタン */
 	private skipToggleEl: HTMLElement | null = null;
 
+	/** 今表示しているグループの見出しの名前と、実行中か今の時間帯のグループか（閉じずに残すか） */
+	private shownGroups: { title: string; keep: boolean }[] = [];
+
 	/** デイリーノートの移動ボタン（前・今日・次） */
 	private dailyNavEls: { prev: HTMLElement; today: HTMLElement; next: HTMLElement } | null = null;
 
@@ -120,6 +123,16 @@ export class TaskView extends ItemView {
 			today: navButton('calendar', "Open today's daily note", () => this.plugin.openToday()),
 			next: navButton('chevron-right', 'Next daily note', () => this.plugin.openAdjacent(1)),
 		};
+
+		// 実行中と今の時間帯のほかを閉じる・すべて開く
+		navButton('chevrons-down-up', 'Collapse other groups', () => {
+			this.collapseOthers();
+			return Promise.resolve();
+		});
+		navButton('chevrons-up-down', 'Expand all groups', () => {
+			this.setCollapsed([]);
+			return Promise.resolve();
+		});
 
 		const skipToggle = buttons.createDiv({ cls: 'clickable-icon nav-action-button' });
 		this.skipToggleEl = skipToggle;
@@ -289,6 +302,10 @@ export class TaskView extends ItemView {
 		}
 
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
+		this.shownGroups = groups.map((group) => ({
+			title: this.groupTitle(group, ctx),
+			keep: group === GROUP_RUNNING || group === this.shownSlot,
+		}));
 		for (const group of groups) {
 			const title = this.groupTitle(group, ctx);
 			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
@@ -335,14 +352,25 @@ export class TaskView extends ItemView {
 		}
 	}
 
-	/** グループを閉じたり開いたりして、data.json に保存する */
+	/** グループを閉じたり開いたりする */
 	private toggleGroup(title: string): void {
-		const settings = this.plugin.settings;
-		const collapsed = settings.collapsedGroups;
-		// 既定値の配列を書き換えないよう、新しい配列にする
-		settings.collapsedGroups = collapsed.includes(title)
-			? collapsed.filter((t) => t !== title)
-			: [...collapsed, title];
+		const collapsed = this.plugin.settings.collapsedGroups;
+		this.setCollapsed(
+			collapsed.includes(title) ? collapsed.filter((t) => t !== title) : [...collapsed, title],
+		);
+	}
+
+	/** 表示しているグループのうち、実行中と今の時間帯のほかを閉じる（その2つは開く） */
+	private collapseOthers(): void {
+		const keep = new Set(this.shownGroups.filter((g) => g.keep).map((g) => g.title));
+		const others = this.shownGroups.filter((g) => !g.keep).map((g) => g.title);
+		const collapsed = this.plugin.settings.collapsedGroups.filter((t) => !keep.has(t));
+		this.setCollapsed([...new Set([...collapsed, ...others])]);
+	}
+
+	/** 閉じているグループを入れ替えて描き直し、data.json に保存する（既定値の配列は書き換えない） */
+	private setCollapsed(titles: string[]): void {
+		this.plugin.settings.collapsedGroups = titles;
 		this.render();
 		void this.plugin.saveSettings().catch(reportError);
 	}

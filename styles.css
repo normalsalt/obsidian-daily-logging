@@ -12,13 +12,13 @@
 	gap: var(--bases-table-group-gap, 10px);
 }
 
-/* 上部のボタンは、右上に詰めて並べる */
+/* 上部のボタンは、中央に詰めて並べる */
 .daily-logging-tasks .nav-header {
 	padding: var(--size-2-2) var(--size-2-2) 0;
 }
 
 .daily-logging-tasks .nav-buttons-container {
-	justify-content: flex-end;
+	justify-content: center;
 	gap: var(--size-2-1);
 }
 
