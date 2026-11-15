@@ -54,6 +54,12 @@
 	background-color: var(--nav-item-background-hover);
 }
 
+/* 実行中と今の時間帯のセクション名は、アクセント色にする（マウスを乗せても変えない） */
+.daily-logging-tasks h4.is-running,
+.daily-logging-tasks h4.is-current {
+	color: var(--text-accent);
+}
+
 .daily-logging-group-chevron {
 	position: absolute;
 	inset-inline-start: var(--size-2-2);

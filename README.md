@@ -65,7 +65,7 @@ A task whose `skipped` date is today is hidden for the day, before any of the ru
 
 Within each time slot, two or more tasks with the same first tag are shown together under the tag's name.
 
-Click the heading of a group to collapse or expand it. A collapsed group shows the number of its tasks, and stays collapsed until you expand it. The buttons at the top of the list collapse every group except the running tasks and the current time slot, or expand all groups.
+Click the heading of a group to collapse or expand it. The heading shows the number of tasks in the group. A collapsed group stays collapsed until you expand it. The headings of the running tasks and the current time slot are shown in the accent color. The buttons at the top of the list collapse every group except the running tasks and the current time slot, or expand all groups.
 
 The buttons at the top of the task list open daily notes. The middle one opens today's daily note, and creates it if it doesn't exist yet. The left and right ones open the closest existing daily note before or after the one you have open, even if some days are missing. If you don't have a daily note open, they start from today.
 

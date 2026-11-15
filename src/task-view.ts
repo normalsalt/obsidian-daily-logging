@@ -311,7 +311,7 @@ export class TaskView extends ItemView {
 			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
 			const collapsed = this.plugin.settings.collapsedGroups.includes(title);
 
-			// 見出しを押すと、グループを閉じたり開いたりする（閉じている間は件数を出す）
+			// 見出しを押すと、グループを閉じたり開いたりする（見出しには件数を出す）
 			const section = root.createDiv({ cls: 'daily-logging-group' });
 			section.toggleClass('is-collapsed', collapsed);
 			const heading = section.createEl('h4', {
@@ -321,7 +321,8 @@ export class TaskView extends ItemView {
 				heading.createSpan({ cls: 'daily-logging-group-chevron' }),
 				collapsed ? 'chevron-right' : 'chevron-down',
 			);
-			heading.createSpan({ text: collapsed ? `${title} (${sorted.length})` : title });
+			heading.createSpan({ text: `${title} (${sorted.length})` });
+			heading.toggleClass('is-running', group === GROUP_RUNNING);
 			if (group === this.shownSlot) {
 				heading.addClass('is-current');
 				this.remainingEl = heading.createSpan({ cls: 'daily-logging-remaining' });
