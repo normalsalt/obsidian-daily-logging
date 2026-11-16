@@ -52,6 +52,8 @@ export interface DailyLoggingSettings {
 	openDailyNote: boolean;
 	/** タスクを開始したら、場所のプロパティの URL と内部リンクをモーダルで出す */
 	showLinksOnStart: boolean;
+	/** 一覧の上部のボタンでグループを閉じるとき、今の時間帯のグループは開いたままにする */
+	keepCurrentGroupOpen: boolean;
 
 	/** タスク一覧のボタンに、アイコンの右に文字も出す */
 	showButtonText: boolean;
@@ -115,6 +117,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	logSkip: true,
 	openDailyNote: true,
 	showLinksOnStart: true,
+	keepCurrentGroupOpen: true,
 
 	showButtonText: true,
 	collapsedGroups: [],
@@ -283,6 +286,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Show links when a task starts',
 						desc: 'When you start a task whose location property has a URL or an internal link, show it in a popup so you can open it right away.',
 						control: { type: 'toggle', key: 'showLinksOnStart' },
+					},
+					{
+						name: 'Keep the current time slot open',
+						desc: 'When you collapse groups with the button at the top of the task list, keep the group of the current time slot open. The group of running tasks is always kept open.',
+						control: { type: 'toggle', key: 'keepCurrentGroupOpen' },
 					},
 				],
 			},

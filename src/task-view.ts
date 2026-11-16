@@ -47,8 +47,11 @@ export class TaskView extends ItemView {
 	/** 一覧を描く場所（上部のボタンは描き直さない） */
 	private listEl: HTMLElement | null = null;
 
-	/** 今表示しているグループの見出しの名前と、実行中か今の時間帯のグループか（閉じずに残すか） */
-	private shownGroups: { title: string; keep: boolean }[] = [];
+	/** 今表示しているグループの見出しの名前と、実行中か、今の時間帯のグループか */
+	private shownGroups: { title: string; running: boolean; current: boolean }[] = [];
+
+	/** グループをまとめて閉じる・開くボタン */
+	private collapseToggleEl: HTMLElement | null = null;
 
 	/** デイリーノートの移動ボタン（前・今日・次） */
 	private dailyNavEls: { prev: HTMLElement; today: HTMLElement; next: HTMLElement } | null = null;
@@ -121,13 +124,10 @@ export class TaskView extends ItemView {
 			next: navButton('chevron-right', 'Next daily note', () => this.plugin.openAdjacent(1)),
 		};
 
-		// 実行中と今の時間帯のほかを閉じる・すべて開く
-		navButton('chevrons-down-up', 'Collapse other groups', () => {
-			this.collapseOthers();
-			return Promise.resolve();
-		});
-		navButton('chevrons-up-down', 'Expand all groups', () => {
-			this.setCollapsed([]);
+		// 閉じられるグループが開いていれば閉じ、なければすべて開く
+		this.collapseToggleEl = navButton('chevrons-down-up', 'Collapse groups', () => {
+			if (this.canCollapse()) this.collapseOthers();
+			else this.setCollapsed([]);
 			return Promise.resolve();
 		});
 
@@ -279,6 +279,14 @@ export class TaskView extends ItemView {
 		this.updateDailyNav();
 		root.empty();
 
+		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
+		this.shownGroups = groups.map((group) => ({
+			title: this.groupTitle(group, ctx),
+			running: group === GROUP_RUNNING,
+			current: group === this.shownSlot,
+		}));
+		this.updateCollapseToggle();
+
 		if (!this.shownAvailable) {
 			root.createEl('p', { cls: 'daily-logging-warning', text: NO_DAILY_NOTES_MESSAGE });
 		}
@@ -288,11 +296,6 @@ export class TaskView extends ItemView {
 			return;
 		}
 
-		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
-		this.shownGroups = groups.map((group) => ({
-			title: this.groupTitle(group, ctx),
-			keep: group === GROUP_RUNNING || group === this.shownSlot,
-		}));
 		for (const group of groups) {
 			const title = this.groupTitle(group, ctx);
 			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
@@ -348,10 +351,30 @@ export class TaskView extends ItemView {
 		);
 	}
 
-	/** 表示しているグループのうち、実行中と今の時間帯のほかを閉じる（その2つは開く） */
+	/** ボタンで閉じずに残すグループか（実行中と、設定がオンなら今の時間帯） */
+	private keepsOpen(g: { running: boolean; current: boolean }): boolean {
+		return g.running || (g.current && this.plugin.settings.keepCurrentGroupOpen);
+	}
+
+	/** 閉じられるグループのうち、開いているものがあるか */
+	private canCollapse(): boolean {
+		const collapsed = this.plugin.settings.collapsedGroups;
+		return this.shownGroups.some((g) => !this.keepsOpen(g) && !collapsed.includes(g.title));
+	}
+
+	/** まとめて閉じる・開くボタンのアイコンとラベルを、今の状態に合わせる */
+	private updateCollapseToggle(): void {
+		const el = this.collapseToggleEl;
+		if (!el) return;
+		const collapse = this.canCollapse();
+		setIcon(el, collapse ? 'chevrons-down-up' : 'chevrons-up-down');
+		el.setAttribute('aria-label', collapse ? 'Collapse groups' : 'Expand all groups');
+	}
+
+	/** 表示しているグループのうち、残すグループのほかを閉じる（残すグループは開く） */
 	private collapseOthers(): void {
-		const keep = new Set(this.shownGroups.filter((g) => g.keep).map((g) => g.title));
-		const others = this.shownGroups.filter((g) => !g.keep).map((g) => g.title);
+		const keep = new Set(this.shownGroups.filter((g) => this.keepsOpen(g)).map((g) => g.title));
+		const others = this.shownGroups.filter((g) => !this.keepsOpen(g)).map((g) => g.title);
 		const collapsed = this.plugin.settings.collapsedGroups.filter((t) => !keep.has(t));
 		this.setCollapsed([...new Set([...collapsed, ...others])]);
 	}
