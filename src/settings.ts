@@ -55,13 +55,10 @@ export interface DailyLoggingSettings {
 
 	/** タスク一覧のボタンに、アイコンの右に文字も出す */
 	showButtonText: boolean;
-	/** タスク一覧にスキップボタンを出す（一覧の上部のボタンで切り替える。設定画面には出さない） */
-	showSkipButtons: boolean;
 	/** タスク一覧で閉じているグループの名前（見出しを押して切り替える。設定画面には出さない） */
 	collapsedGroups: string[];
 	/** ボタンのアイコン（組み込みアイコンの名前）。空ならアイコンなし */
 	startIcon: string;
-	skipIcon: string;
 	interruptIcon: string;
 	endIcon: string;
 
@@ -120,10 +117,8 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	showLinksOnStart: true,
 
 	showButtonText: true,
-	showSkipButtons: true,
 	collapsedGroups: [],
 	startIcon: 'play',
-	skipIcon: 'skip-forward',
 	interruptIcon: 'pause',
 	endIcon: 'check',
 
@@ -394,11 +389,6 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						control: { type: 'text', key: 'startIcon', validate: validateIcon },
 					},
 					{
-						name: 'Skip icon',
-						desc: iconDesc,
-						control: { type: 'text', key: 'skipIcon', validate: validateIcon },
-					},
-					{
 						name: 'Interrupt icon',
 						desc: iconDesc,
 						control: { type: 'text', key: 'interruptIcon', validate: validateIcon },
@@ -436,7 +426,7 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 					},
 					{
 						name: 'Skip label',
-						desc: 'Word written after the link when a task is skipped, and on its button.',
+						desc: 'Word written after the link when a task is skipped.',
 						control: { type: 'text', key: 'skipLabel', placeholder: d.skipLabel },
 					},
 					{

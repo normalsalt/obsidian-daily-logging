@@ -47,9 +47,6 @@ export class TaskView extends ItemView {
 	/** 一覧を描く場所（上部のボタンは描き直さない） */
 	private listEl: HTMLElement | null = null;
 
-	/** スキップボタンの表示を切り替える、上部のボタン */
-	private skipToggleEl: HTMLElement | null = null;
-
 	/** 今表示しているグループの見出しの名前と、実行中か今の時間帯のグループか（閉じずに残すか） */
 	private shownGroups: { title: string; keep: boolean }[] = [];
 
@@ -132,15 +129,6 @@ export class TaskView extends ItemView {
 		navButton('chevrons-up-down', 'Expand all groups', () => {
 			this.setCollapsed([]);
 			return Promise.resolve();
-		});
-
-		const skipToggle = buttons.createDiv({ cls: 'clickable-icon nav-action-button' });
-		this.skipToggleEl = skipToggle;
-		this.registerDomEvent(skipToggle, 'click', () => {
-			const settings = this.plugin.settings;
-			settings.showSkipButtons = !settings.showSkipButtons;
-			this.render();
-			void this.plugin.saveSettings().catch(reportError);
 		});
 
 		const refresh = buttons.createDiv({
@@ -288,7 +276,6 @@ export class TaskView extends ItemView {
 		this.shownSlot = currentSlot(ctx, moment());
 		this.remainingEl = null;
 		this.elapsedEls = [];
-		this.updateSkipToggle();
 		this.updateDailyNav();
 		root.empty();
 
@@ -390,16 +377,6 @@ export class TaskView extends ItemView {
 		setEnabled(els.next, available && this.plugin.adjacentDailyNote(1) !== null);
 	}
 
-	/** スキップボタンの表示を切り替えるボタンの、アイコン・ラベル・状態を今の設定に合わせる */
-	private updateSkipToggle(): void {
-		const el = this.skipToggleEl;
-		if (!el) return;
-		const { skipIcon, showSkipButtons } = this.plugin.settings;
-		setIcon(el, isIconId(skipIcon) ? skipIcon.trim() : 'skip-forward');
-		el.setAttribute('aria-label', showSkipButtons ? 'Hide skip buttons' : 'Show skip buttons');
-		el.toggleClass('is-active', showSkipButtons);
-	}
-
 	/** 残り時間と、実行中のタスクの経過時間を書き換える */
 	private updateTimers(ctx: TaskContext): void {
 		this.updateRemaining(ctx);
@@ -423,7 +400,7 @@ export class TaskView extends ItemView {
 			void this.app.workspace.getLeaf(Keymap.isModEvent(evt)).openFile(entry.file);
 		});
 
-		// 右クリック（モバイルは長押し）で、押し忘れたときの記録を出す
+		// 右クリック（モバイルは長押し）で、スキップと、押し忘れたときの記録を出す
 		item.addEventListener('contextmenu', (evt) => {
 			evt.preventDefault();
 			const file = entry.file;
@@ -432,6 +409,7 @@ export class TaskView extends ItemView {
 			)
 				? [{ title: 'Forgot to end', icon: 'check', run: () => this.plugin.forgotEndTask(file) }]
 				: [
+						{ title: 'Skip', icon: 'skip-forward', run: () => this.plugin.skipTask(file) },
 						{ title: 'Forgot to start', icon: 'play', run: () => this.plugin.forgotStartTask(file) },
 						{ title: 'Already done', icon: 'check-check', run: () => this.plugin.doneTask(file) },
 					];
@@ -469,7 +447,7 @@ export class TaskView extends ItemView {
 			item.createSpan({ cls: 'daily-logging-task-meta', text: s.value.format('HH:mm') });
 		}
 
-		// 実行中なら「中断」「終了」、それ以外なら「開始」「スキップ」を表示する
+		// 実行中なら「中断」「終了」、それ以外なら「開始」を表示する
 		const labels = this.plugin.taskLabels();
 		const settings = this.plugin.settings;
 		const file = entry.file;
@@ -486,9 +464,6 @@ export class TaskView extends ItemView {
 				]
 			: [
 					{ label: labels.start, icon: settings.startIcon, run: () => this.plugin.startTask(file) },
-					...(settings.showSkipButtons
-						? [{ label: labels.skip, icon: settings.skipIcon, run: () => this.plugin.skipTask(file) }]
-						: []),
 				];
 
 		const buttons: HTMLButtonElement[] = [];

@@ -80,7 +80,7 @@ To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in 
 | Start     | Sets `started` and logs it. Works on any Markdown file, even one without properties.               |
 | End       | Sets `ended` and logs it with the time spent. Clears `scheduled`.                                  |
 | Interrupt | Sets `ended` and logs it with the time spent. Sets `scheduled` to 15 minutes later, so the task stays in the list. |
-| Skip      | Sets `skipped`, clears `scheduled` like End, and logs it, so you can write the reason under it. The task is hidden until the next day. |
+| Skip      | Right-click the task in the list (long-press on mobile) and choose **Skip**. Sets `skipped`, clears `scheduled` like End, and logs it, so you can write the reason under it. The task is hidden until the next day. |
 
 If you forgot to press a button, right-click the task in the list (long-press on mobile), or use a command on the open note. The times you don't know are written as `??:??`.
 
@@ -95,8 +95,6 @@ When you start a task, the unchecked checkboxes under the **Steps heading** of t
 If the `location` property of a task has a URL or an internal link, it is shown in a popup when you start the task, so you can open it right away. The popup also has a button to open the task's note. Press Enter to open the first link, or Esc to close the popup. You can turn this off with **Show links when a task starts** in the settings.
 
 If you skip a task without `repeat` days, a popup tells you that it won't appear in the list again until you set `scheduled`, with a button to open the task's note.
-
-To hide the skip buttons, use the button at the top of the task list. You can still use the **Skip task** command while they are hidden.
 
 Each button shows an icon and its label. You can choose the icons in the **Buttons** settings, by the name of a built-in icon such as `play`. To show only the icons, turn off **Show text on buttons**. A button without an icon always shows its label.
 
