@@ -418,8 +418,10 @@ export class TaskView extends ItemView {
 		const item = list.createEl('li', { cls: 'daily-logging-task' });
 		if (isRunning(entry.props)) item.addClass('is-running');
 
-		const link = item.createEl('a', { cls: 'daily-logging-task-name', text: entry.name });
-		link.addEventListener('click', (evt) => {
+		item.createEl('a', { cls: 'daily-logging-task-name', text: entry.name });
+		// ボタンのほかの場所を押したら、タスクのノートを開く
+		item.addEventListener('click', (evt) => {
+			if (evt.target instanceof Element && evt.target.closest('button')) return;
 			void this.app.workspace.getLeaf(Keymap.isModEvent(evt)).openFile(entry.file);
 		});
 

@@ -114,11 +114,16 @@
 
 .daily-logging-task {
 	gap: var(--size-4-2);
+	cursor: pointer;
 }
 
-/* マウスを乗せると文字だけ濃くする（行の背景は変えない。押せるのはボタン） */
+/*
+ * マウスを乗せた行は、検索結果と同じ選択色を重ねる。背景色ではなく背景画像にして、
+ * 実行中・今の時間帯の行の背景色を上書きせずに、その上に重ねる
+ */
 .daily-logging-task:hover {
 	color: var(--text-normal);
+	background-image: linear-gradient(var(--text-selection), var(--text-selection));
 }
 
 .daily-logging-task-name {
@@ -127,11 +132,16 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	cursor: pointer;
 }
 
-/* 省略された名前は、マウスを乗せている間だけ折り返して全文を出す */
+/* 名前はリンクの色のまま、マウスを乗せても変えない（押せるのは行全体） */
 .daily-logging-task-name:hover {
+	color: var(--link-color);
+	text-decoration-line: var(--link-decoration);
+}
+
+/* 省略された名前は、行にマウスを乗せている間（ボタンの上でも）だけ折り返して全文を出す */
+.daily-logging-task:hover .daily-logging-task-name {
 	white-space: normal;
 	overflow-wrap: anywhere;
 }
