@@ -272,3 +272,8 @@
 	gap: var(--size-4-2);
 	overflow-wrap: anywhere;
 }
+
+/* 割り込みタスクの名前の入力欄は、モーダルの幅いっぱいにする */
+.daily-logging-interruption-input {
+	width: 100%;
+}

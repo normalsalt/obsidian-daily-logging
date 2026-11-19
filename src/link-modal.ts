@@ -1,4 +1,4 @@
-import { MarkdownView, Modal } from 'obsidian';
+import { MarkdownView, Modal, TextComponent } from 'obsidian';
 import type { App, TFile } from 'obsidian';
 
 /** プロパティの値から拾ったリンク */
@@ -137,6 +137,50 @@ export class SleepConfirmModal extends Modal {
 		});
 		row.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close());
 		ok.focus();
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
+}
+
+/** 割り込みタスクの名前を入力するモーダル */
+export class InterruptionModal extends Modal {
+	constructor(
+		app: App,
+		private onConfirm: (name: string) => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		this.setTitle('Log an interruption');
+		const input = new TextComponent(this.contentEl).setPlaceholder('Task name');
+		input.inputEl.addClass('daily-logging-interruption-input');
+
+		const row = this.contentEl.createDiv({ cls: 'modal-button-container' });
+		const ok = row.createEl('button', { cls: 'mod-cta', text: 'Start' });
+		row.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close());
+
+		// 空なら確定できない
+		const name = () => input.getValue().trim();
+		const confirm = () => {
+			if (name() === '') return;
+			const value = name();
+			this.close();
+			this.onConfirm(value);
+		};
+		ok.disabled = true;
+		input.onChange(() => (ok.disabled = name() === ''));
+		ok.addEventListener('click', confirm);
+		// 日本語入力の変換を確定する Enter では、確定しない
+		input.inputEl.addEventListener('keydown', (evt) => {
+			if (evt.key === 'Enter' && !evt.isComposing) {
+				evt.preventDefault();
+				confirm();
+			}
+		});
+		input.inputEl.focus();
 	}
 
 	onClose(): void {

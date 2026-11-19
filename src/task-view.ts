@@ -137,6 +137,12 @@ export class TaskView extends ItemView {
 			next: navButton('chevron-right', 'Next daily note', () => this.plugin.openAdjacent(1)),
 		};
 
+		// 割り込みタスクを記録する（実行中のタスクはすべて中断する）
+		navButton('zap', 'Log an interruption', () => {
+			this.plugin.openInterruptionModal(() => this.render());
+			return Promise.resolve();
+		});
+
 		// 閉じられるグループが開いていれば閉じ、なければすべて開く
 		this.collapseToggleEl = navButton('chevrons-down-up', 'Collapse groups', () => {
 			if (this.canCollapse()) this.collapseOthers();

@@ -51,7 +51,7 @@ import {
 import type { Moment, TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
-import { LinkModal, SkipWarningModal, findLinks } from './link-modal';
+import { InterruptionModal, LinkModal, SkipWarningModal, findLinks } from './link-modal';
 
 /** 作成から何ミリ秒以内に開かれたら記録するか */
 const OPEN_WINDOW_MS = 5000;
@@ -134,6 +134,11 @@ export default class DailyLoggingPlugin extends Plugin {
 			id: 'done-task',
 			name: 'Mark task as already done',
 			checkCallback: (checking) => this.taskCommand(checking, false, (f) => this.doneTask(f)),
+		});
+		this.addCommand({
+			id: 'log-interruption',
+			name: 'Log an interruption',
+			callback: () => this.openInterruptionModal(),
 		});
 		this.addCommand({
 			id: 'fetch-calendar-events',
@@ -492,6 +497,45 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.showLoggedLine(await logged, this.settings.childBullet);
 
 		if (!repeats) new SkipWarningModal(this.app, file).open();
+	}
+
+	/** 割り込みタスクの名前を入力するモーダルを出し、確定したら記録する。done は記録の後に呼ぶ */
+	openInterruptionModal(done?: () => void): void {
+		new InterruptionModal(this.app, (name) => {
+			void this.logInterruption(name)
+				.catch(reportError)
+				.finally(() => done?.());
+		}).open();
+	}
+
+	/**
+	 * 割り込みタスクを記録する。実行中のタスクを開始の古い順にすべて中断してから、
+	 * 今の時間帯に「- HH:mm 名前 開始の言葉」（リンクなし）を記録する。途中の中断ではデイリーノートを表示しない
+	 */
+	async logInterruption(name: string): Promise<void> {
+		if (!this.ensureDailyNotes()) return;
+
+		for (const file of this.runningTasks()) await this.finishTask(file, 'interrupt', false);
+
+		const now = moment();
+		const text = `- ${now.format('HH:mm')} ${name} ${this.taskLabels().start}`;
+		const below = this.settings.childBullet ? ['\t- '] : [];
+		const logged = await this.logLine(now, () => true, () => text, below);
+		await this.showLoggedLine(logged, this.settings.childBullet);
+	}
+
+	/** 実行中のタスクを、開始日時の古い順に（デイリーノートと休日のノートは除く） */
+	private runningTasks(): TFile[] {
+		const dn = getDailyNotes(this.app);
+		const holidayNote = this.holidayNote();
+		const names = this.taskPropNames();
+		const running: { file: TFile; start: number }[] = [];
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			if ((dn && isDailyNote(file, dn)) || file === holidayNote) continue;
+			const props = readTask(this.app.metadataCache.getFileCache(file)?.frontmatter, names);
+			if (props?.start && isRunning(props)) running.push({ file, start: props.start.valueOf() });
+		}
+		return running.sort((a, b) => a.start - b.start).map((r) => r.file);
 	}
 
 	/**

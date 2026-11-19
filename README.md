@@ -102,6 +102,8 @@ Each button shows an icon and its label. You can choose the icons in the **Butto
 
 The **Start task**, **End task**, **Interrupt task**, and **Skip task** commands work on the file that is currently open. You can assign hotkeys to them.
 
+To log something that isn't in the list, such as a phone call, press the lightning button at the top of the task list, or use the **Log an interruption** command. Enter a name and press Enter. Every running task is interrupted, and the name is logged with the start label, such as `- 14:05 Phone call started`. The name is written as you typed it, so type `[[ ]]` around it if you want a link. The interruption itself isn't tracked as a running task.
+
 After you start, interrupt, end, or skip a task, the daily note opens in a new tab, with the cursor on the bullet under the new line (or on the new line, if the bullet is turned off). If the daily note is already open, its tab is shown instead. You can turn this off with **Show the logged line** in the settings. To skip a task without logging it, turn off **Log skipped tasks**.
 
 ## Calendar events
