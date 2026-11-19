@@ -235,6 +235,27 @@
 	background-color: var(--interactive-accent-hover);
 }
 
+/*
+ * 就寝の行と、タスクがないときの行は、ボタンのほかは押せないので、行の選択色と指のカーソルを出さない。
+ * 就寝の行の名前は普通の文字の色にする
+ */
+.daily-logging-task.daily-logging-sleep,
+.daily-logging-task.daily-logging-empty-row {
+	cursor: default;
+}
+
+.daily-logging-task.daily-logging-sleep:hover,
+.daily-logging-task.daily-logging-empty-row:hover {
+	color: inherit;
+	background-image: none;
+}
+
+.daily-logging-sleep .daily-logging-task-name,
+.daily-logging-sleep .daily-logging-task-name:hover {
+	color: var(--text-normal);
+	text-decoration-line: none;
+}
+
 .daily-logging-empty {
 	color: var(--text-muted);
 }

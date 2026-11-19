@@ -27,7 +27,7 @@ import {
 	reportError,
 	updateDailyNote,
 } from './daily-notes';
-import type { LoggedLine } from './daily-notes';
+import type { DailyNotesInstance, LoggedLine } from './daily-notes';
 import {
 	dayBoundary,
 	insertUnderHeading,
@@ -283,6 +283,30 @@ export default class DailyLoggingPlugin extends Plugin {
 		children: string[] = [],
 		time = at.format('HH:mm'),
 	): Promise<LoggedLine | null> {
+		const below = children.length > 0 ? children : this.settings.childBullet ? ['\t- '] : [];
+		return this.logLine(
+			at,
+			(dn) =>
+				// デイリーノート自身と、処理を待つ間に削除されたファイルは対象外
+				!isDailyNote(file, dn) && this.app.vault.getFileByPath(file.path) !== null,
+			(dailyNote) => {
+				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
+				return `- ${time} ${link}${suffix}`;
+			},
+			below,
+		);
+	}
+
+	/**
+	 * デイリーノートの、at に合う場所に1行と、その下に below の行を記録する（キューで順番に処理）。
+	 * accept が false を返したら記録しない。追記した場所を返す。記録しなかったとき、失敗したときは null
+	 */
+	private logLine(
+		at: Moment,
+		accept: (dn: DailyNotesInstance) => boolean,
+		text: (dailyNote: TFile) => string,
+		below: string[],
+	): Promise<LoggedLine | null> {
 		return this.enqueue(async () => {
 			const dn = getDailyNotes(this.app);
 			if (!dn) {
@@ -291,18 +315,15 @@ export default class DailyLoggingPlugin extends Plugin {
 				return null;
 			}
 			this.warnedNoDailyNotes = false; // 使えるようになったら、次に使えなくなったときにまた知らせる
-			if (isDailyNote(file, dn)) return null; // デイリーノート自身は対象外
-			if (!this.app.vault.getFileByPath(file.path)) return null; // 処理を待つ間に削除された
+			if (!accept(dn)) return null;
 
-			const { useHeadings, logToPreviousDay, timeSlots, childBullet } = this.settings;
+			const { useHeadings, logToPreviousDay, timeSlots } = this.settings;
 			const slots = useHeadings ? parseTimeSlots(timeSlots).slots : [];
 			const { date, slot } = resolvePlacement(at, slots, logToPreviousDay);
 
 			return updateDailyNote(this.app, dn, date, (data, dailyNote) => {
-				const link = this.app.fileManager.generateMarkdownLink(file, dailyNote.path);
 				// 子の行は2行目から一緒に入れる（返す行番号は記録の行のまま）
-				const below = children.length > 0 ? children : childBullet ? ['\t- '] : [];
-				const line = [`- ${time} ${link}${suffix}`, ...below].join('\n');
+				const line = [text(dailyNote), ...below].join('\n');
 				return slot
 					? insertUnderHeading(data, slot, slots, line)
 					: appendLine(data, line);
@@ -385,11 +406,13 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/**
 	 * 終了・中断・終了忘れ・実行済みの共通処理。終了日時を書き込み、所要時間付きで記録する。
-	 * 終了忘れと実行済みでも、実行中でなくすために終了日時は今にする（記録は ??:??）
+	 * 終了忘れと実行済みでも、実行中でなくすために終了日時は今にする（記録は ??:??）。
+	 * show が false なら、記録した行を表示しない（就寝でまとめて処理するとき）
 	 */
 	private async finishTask(
 		file: TFile,
 		mode: 'end' | 'interrupt' | 'forgotEnd' | 'done',
+		show = true,
 	): Promise<void> {
 		if (!this.ensureDailyNotes()) return;
 
@@ -431,14 +454,16 @@ export default class DailyLoggingPlugin extends Plugin {
 		const time = forgot ? UNKNOWN_TIME : now.format('HH:mm');
 		const logged = this.logEntry(file, now, ` ${label}${duration}`, [], time);
 		await updated;
-		await this.showLoggedLine(await logged, this.settings.childBullet);
+		if (show) await this.showLoggedLine(await logged, this.settings.childBullet);
+		else await logged;
 	}
 
 	/**
 	 * タスクをスキップする。スキップ日時を書き込み、予定日時の値を空にし、設定がオンならデイリーノートに記録する。
-	 * 周期がなければ、もう一覧に出ないことを知らせる
+	 * 周期がなければ、もう一覧に出ないことを知らせる。
+	 * show が false なら、記録した行も知らせるモーダルも出さない（就寝でまとめて処理するとき）
 	 */
-	async skipTask(file: TFile): Promise<void> {
+	async skipTask(file: TFile, show = true): Promise<void> {
 		const log = this.settings.logSkip;
 		if (log && !this.ensureDailyNotes()) return;
 
@@ -456,9 +481,36 @@ export default class DailyLoggingPlugin extends Plugin {
 		// 理由を書けるよう、記録の下のバレットにカーソルを置く
 		const logged = log ? this.logEntry(file, now, ` ${this.taskLabels().skip}`) : null;
 		await updated;
+		if (!show) {
+			await logged;
+			return;
+		}
 		await this.showLoggedLine(await logged, this.settings.childBullet);
 
 		if (!repeats) new SkipWarningModal(this.app, file).open();
+	}
+
+	/**
+	 * 就寝する。files を順に（実行中なら終了してから）スキップし、最後に就寝を記録する。
+	 * 就寝の行はリンクなしで、下にバレットを入れない
+	 */
+	async goToBed(files: TFile[]): Promise<void> {
+		if (!this.ensureDailyNotes()) return;
+
+		const names = this.taskPropNames();
+		// 記録の順を一覧の順にそろえるため、1件ずつ待つ
+		for (const file of files) {
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			const props = readTask(fm, names);
+			if (props && isRunning(props)) await this.finishTask(file, 'end', false);
+			await this.skipTask(file, false);
+		}
+
+		const now = moment();
+		const labels = this.taskLabels();
+		const text = `- ${now.format('HH:mm')} ${labels.sleep} ${labels.start}`;
+		const logged = await this.logLine(now, () => true, () => text, []);
+		await this.showLoggedLine(logged, false);
 	}
 
 	/**
@@ -678,6 +730,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		interrupt: string;
 		skip: string;
 		done: string;
+		sleep: string;
 		running: string;
 		other: string;
 	} {
@@ -691,6 +744,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			interrupt: pick(s.interruptLabel, d.interruptLabel),
 			skip: pick(s.skipLabel, d.skipLabel),
 			done: pick(s.doneLabel, d.doneLabel),
+			sleep: pick(s.sleepLabel, d.sleepLabel),
 			running: pick(s.runningGroupLabel, d.runningGroupLabel),
 			other: pick(s.otherGroupLabel, d.otherGroupLabel),
 		};

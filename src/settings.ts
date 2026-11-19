@@ -71,6 +71,8 @@ export interface DailyLoggingSettings {
 	interruptLabel: string;
 	skipLabel: string;
 	doneLabel: string;
+	/** タスク一覧の最後の就寝の行の名前（記録では、開始の言葉と続けて書く） */
+	sleepLabel: string;
 	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
@@ -131,6 +133,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	interruptLabel: 'interrupted',
 	skipLabel: 'skipped',
 	doneLabel: 'done',
+	sleepLabel: 'Bedtime',
 	runningGroupLabel: 'Running',
 	otherGroupLabel: 'Other',
 
@@ -441,6 +444,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Done label',
 						desc: 'Word written after the link when a task is marked as already done.',
 						control: { type: 'text', key: 'doneLabel', placeholder: d.doneLabel },
+					},
+					{
+						name: 'Bedtime name',
+						desc: 'Name of the row at the end of the task list. When you press its start button, it is logged with the start label.',
+						control: { type: 'text', key: 'sleepLabel', placeholder: d.sleepLabel },
 					},
 					{
 						name: 'Running group name',

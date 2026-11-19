@@ -96,6 +96,8 @@ If the `location` property of a task has a URL or an internal link, it is shown 
 
 If you skip a task without `repeat` days, a popup tells you that it won't appear in the list again until you set `scheduled`, with a button to open the task's note.
 
+When you go to bed, press the start button of the bedtime row at the end of the task list. After you confirm, every task in the list is skipped from top to bottom (a running task is ended first), and the row's name is logged with the start label, such as `- 23:30 Bedtime started`, without a bullet under it. You can change the name with **Bedtime name** in the settings (default: `Bedtime`). Clicking elsewhere on the row does nothing. Popups for tasks without `repeat` days aren't shown.
+
 Each button shows an icon and its label. You can choose the icons in the **Buttons** settings, by the name of a built-in icon such as `play`. To show only the icons, turn off **Show text on buttons**. A button without an icon always shows its label.
 
 The **Start task**, **End task**, **Interrupt task**, and **Skip task** commands work on the file that is currently open. You can assign hotkeys to them.

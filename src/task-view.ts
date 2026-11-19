@@ -29,6 +29,7 @@ import {
 } from './task';
 import type { Moment, TaskContext, TaskDate, TaskProps } from './task';
 import { isIconId } from './settings';
+import { SleepConfirmModal } from './link-modal';
 import { firstOpenItem } from './time-slots';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
@@ -56,8 +57,14 @@ export class TaskView extends ItemView {
 	/** デイリーノートの移動ボタン（前・今日・次） */
 	private dailyNavEls: { prev: HTMLElement; today: HTMLElement; next: HTMLElement } | null = null;
 
+	/** 就寝の処理中か（途中の再描画でも、就寝ボタンを押せないままにする） */
+	private sleeping = false;
+
 	/** 今表示しているタスクのパス（再描画が必要かの判定に使う） */
 	private shown = new Set<string>();
+
+	/** 今表示しているタスクを、一覧の上からの順に（閉じたグループも含む。就寝でスキップする順） */
+	private shownOrder: TaskEntry[] = [];
 
 	/** 今表示している論理上の日付 */
 	private shownDay = '';
@@ -280,6 +287,13 @@ export class TaskView extends ItemView {
 		root.empty();
 
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
+		this.shownOrder = groups.flatMap((group) =>
+			groupByTag(entries.filter((e) => e.group === group).sort(compareTasks)).flatMap((item) =>
+				'tag' in item ? item.entries : [item],
+			),
+		);
+		// タスクが1件もなければ、今の時間帯の見出し（件数 0）の中に「タスクなし」と就寝の行を出す
+		if (entries.length === 0 && this.shownSlot !== null) groups.push(this.shownSlot);
 		this.shownGroups = groups.map((group) => ({
 			title: this.groupTitle(group, ctx),
 			running: group === GROUP_RUNNING,
@@ -291,11 +305,13 @@ export class TaskView extends ItemView {
 			root.createEl('p', { cls: 'daily-logging-warning', text: NO_DAILY_NOTES_MESSAGE });
 		}
 
-		if (entries.length === 0) {
+		if (groups.length === 0) {
 			root.createEl('p', { cls: 'daily-logging-empty', text: 'No tasks for today.' });
+			this.renderSleepRow(root.createDiv({ cls: 'daily-logging-group' }).createEl('ul'));
 			return;
 		}
 
+		let lastList: HTMLElement | null = null;
 		for (const group of groups) {
 			const title = this.groupTitle(group, ctx);
 			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
@@ -326,8 +342,17 @@ export class TaskView extends ItemView {
 					toggle();
 				}
 			});
+			// 閉じたグループが最後なら、就寝の行も一緒に隠す
+			lastList = null;
 			if (collapsed) continue;
 			const list = section.createEl('ul');
+			lastList = list;
+			if (sorted.length === 0) {
+				list.createEl('li', {
+					cls: ['daily-logging-task', 'daily-logging-empty-row'],
+					text: 'No tasks for today.',
+				});
+			}
 
 			for (const item of groupByTag(sorted)) {
 				if (!('tag' in item)) {
@@ -341,6 +366,40 @@ export class TaskView extends ItemView {
 				for (const e of item.entries) this.renderTask(subList, e, ctx);
 			}
 		}
+		// 就寝の行は最後のグループの末尾に置く
+		if (lastList) this.renderSleepRow(lastList);
+	}
+
+	/**
+	 * 就寝の行を置く。見た目はタスクの行と同じで、開始ボタンだけが押せる
+	 * （行を押してもノートは開かず、名前もリンクの色にしない）
+	 */
+	private renderSleepRow(list: HTMLElement): void {
+		const labels = this.plugin.taskLabels();
+		const settings = this.plugin.settings;
+		const item = list.createEl('li', { cls: ['daily-logging-task', 'daily-logging-sleep'] });
+		item.createSpan({ cls: 'daily-logging-task-name', text: labels.sleep });
+		const button = item.createEl('button', { cls: 'daily-logging-task-button' });
+		fillButton(button, labels.start, settings.startIcon, settings);
+		button.disabled = this.sleeping;
+		button.addEventListener('click', () => this.confirmSleep());
+	}
+
+	/** 確認してから、一覧のタスクを上から順にスキップし、就寝を記録する */
+	private confirmSleep(): void {
+		const files = this.shownOrder.map((e) => e.file);
+		const running = this.shownOrder.filter((e) => isRunning(e.props)).length;
+		new SleepConfirmModal(this.app, files.length, running, () => {
+			this.sleeping = true; // 二重に押されないようにする
+			this.render();
+			void this.plugin
+				.goToBed(files)
+				.catch(reportError)
+				.finally(() => {
+					this.sleeping = false;
+					this.render();
+				});
+		}).open();
 	}
 
 	/** グループを閉じたり開いたりする */
@@ -494,16 +553,7 @@ export class TaskView extends ItemView {
 		const buttons: HTMLButtonElement[] = [];
 		for (const action of actions) {
 			const button = item.createEl('button', { cls: 'daily-logging-task-button' });
-			// アイコンがなければ、文字を出さない設定でも文字を出す
-			const icon = action.icon.trim();
-			const hasIcon = isIconId(icon);
-			if (hasIcon) setIcon(button.createSpan({ cls: 'daily-logging-task-button-icon' }), icon);
-			if (!hasIcon || settings.showButtonText) {
-				button.createSpan({ text: action.label });
-			} else {
-				button.setAttribute('aria-label', action.label);
-				setTooltip(button, action.label);
-			}
+			fillButton(button, action.label, action.icon, settings);
 			buttons.push(button);
 			button.addEventListener('click', () => {
 				for (const b of buttons) b.disabled = true; // 二重に押されないようにする
@@ -513,5 +563,23 @@ export class TaskView extends ItemView {
 					.finally(() => this.render());
 			});
 		}
+	}
+}
+
+/** ボタンにアイコンと文字を入れる。アイコンがなければ、文字を出さない設定でも文字を出す */
+function fillButton(
+	button: HTMLButtonElement,
+	label: string,
+	iconName: string,
+	settings: { showButtonText: boolean },
+): void {
+	const icon = iconName.trim();
+	const hasIcon = isIconId(icon);
+	if (hasIcon) setIcon(button.createSpan({ cls: 'daily-logging-task-button-icon' }), icon);
+	if (!hasIcon || settings.showButtonText) {
+		button.createSpan({ text: label });
+	} else {
+		button.setAttribute('aria-label', label);
+		setTooltip(button, label);
 	}
 }

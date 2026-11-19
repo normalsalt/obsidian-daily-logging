@@ -109,6 +109,41 @@ export class SkipWarningModal extends Modal {
 	}
 }
 
+/** 就寝する前に、スキップする件数を示して確かめるモーダル */
+export class SleepConfirmModal extends Modal {
+	constructor(
+		app: App,
+		private count: number,
+		private running: number,
+		private onConfirm: () => void,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		this.setTitle('Go to bed');
+		const tasks = (n: number, kind = '') => `${n} ${kind}task${n === 1 ? '' : 's'}`;
+		let text = `Skip ${tasks(this.count)} in the list and log that you go to bed?`;
+		if (this.running > 0) {
+			text += ` ${tasks(this.running, 'running ')} will be ended first.`;
+		}
+		this.contentEl.createEl('p', { text });
+
+		const row = this.contentEl.createDiv({ cls: 'modal-button-container' });
+		const ok = row.createEl('button', { cls: 'mod-cta', text: 'Go to bed' });
+		ok.addEventListener('click', () => {
+			this.close();
+			this.onConfirm();
+		});
+		row.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close());
+		ok.focus();
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
+}
+
 /** 「ノートを開く」と「閉じる」のボタンを並べる。ノートを開くボタンを返す */
 function addNoteButtons(modal: Modal, file: TFile): HTMLButtonElement {
 	const row = modal.contentEl.createDiv({ cls: 'modal-button-container' });
