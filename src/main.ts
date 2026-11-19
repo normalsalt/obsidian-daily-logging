@@ -363,6 +363,8 @@ export default class DailyLoggingPlugin extends Plugin {
 			fm[names.start] = now.format(unknownStart ? PROP_DAY_FORMAT : PROP_DATE_FORMAT);
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
+			// 実行したので、スキップを取り消す（値だけ空にする）
+			if (names.skip in fm) fm[names.skip] = null;
 		});
 		const steps = await this.readSteps(file);
 		const time = unknownStart ? UNKNOWN_TIME : now.format('HH:mm');
@@ -430,6 +432,8 @@ export default class DailyLoggingPlugin extends Plugin {
 			before.startKnown = props?.startKnown ?? false;
 			fm[names.end] = now.format(PROP_DATE_FORMAT);
 
+			// 実行済みなら、スキップを取り消す（値だけ空にする）
+			if (mode === 'done' && names.skip in fm) fm[names.skip] = null;
 			if (mode !== 'interrupt') {
 				if (names.scheduled in fm) fm[names.scheduled] = null; // 値だけ空にする
 			} else {

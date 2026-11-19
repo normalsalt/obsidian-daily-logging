@@ -49,7 +49,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 | `tags`      | List        | Tasks with the same first tag are grouped together within a time slot |
 | `scheduled` | Date & time | Show the task on this day                                      |
 | `time`      | Text        | Time of day, such as `18:00`. Used like the time of `scheduled` when `scheduled` is empty |
-| `skipped`   | Date & time | Set by the plugin when you skip the task. Hides the task from the list on this day, unless it is running |
+| `skipped`   | Date & time | Set by the plugin when you skip the task. Hides the task from the list on this day, unless it is running. Cleared when you start the task or mark it as already done |
 | `started`   | Date & time | Set by the plugin when you start the task                      |
 | `ended`     | Date & time | Set by the plugin when you end or interrupt the task           |
 
