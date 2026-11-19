@@ -61,11 +61,11 @@ A task is shown when one of the following applies:
 
 A task scheduled for a later day is hidden until that day, even if it repeats today.
 
-A task whose `skipped` date is today is hidden for the day, before any of the rules above apply, unless it is running.
+A task whose `skipped` date is today is hidden for the day, before any of the rules above apply, unless it is running. Instead, it is shown in the **Skipped** group, below the running tasks. This group is collapsed until you click its heading, and is collapsed again when you restart Obsidian. You can change its name with **Skipped group name** in the settings.
 
 Within each time slot, two or more tasks with the same first tag are shown together under the tag's name.
 
-Click the heading of a group to collapse or expand it. The heading shows the number of tasks in the group. A collapsed group stays collapsed until you expand it. The headings of the running tasks and the current time slot are shown in the accent color. The button at the top of the list collapses every group except the running tasks and the current time slot. When they are already collapsed, it expands all groups. To collapse the current time slot too, turn off **Keep the current time slot open** in the settings.
+Click the heading of a group to collapse or expand it. The heading shows the number of tasks in the group. A collapsed group stays collapsed until you expand it. The headings of the running tasks and the current time slot are shown in the accent color. The button at the top of the list collapses every group except the running tasks and the current time slot. When they are already collapsed, it expands all groups except the **Skipped** group. To collapse the current time slot too, turn off **Keep the current time slot open** in the settings.
 
 The buttons at the top of the task list open daily notes. The middle one opens today's daily note, and creates it if it doesn't exist yet. The left and right ones open the closest existing daily note before or after the one you have open, even if some days are missing. If you don't have a daily note open, they start from today.
 
@@ -96,7 +96,7 @@ If the `location` property of a task has a URL or an internal link, it is shown 
 
 If you skip a task without `repeat` days, a popup tells you that it won't appear in the list again until you set `scheduled`, with a button to open the task's note.
 
-When you go to bed, press the start button of the bedtime row at the end of the task list. After you confirm, every task in the list is skipped from top to bottom (a running task is ended first), and the row's name is logged with the start label, such as `- 23:30 Bedtime started`, without a bullet under it. You can change the name with **Bedtime name** in the settings (default: `Bedtime`). Clicking elsewhere on the row does nothing. Popups for tasks without `repeat` days aren't shown.
+When you go to bed, press the start button of the bedtime row at the end of the task list. It is never placed among the running or skipped tasks. After you confirm, every task in the list is skipped from top to bottom (a running task is ended first), and the row's name is logged with the start label, such as `- 23:30 Bedtime started`, without a bullet under it. You can change the name with **Bedtime name** in the settings (default: `Bedtime`). Clicking elsewhere on the row does nothing. Popups for tasks without `repeat` days aren't shown.
 
 Each button shows an icon and its label. You can choose the icons in the **Buttons** settings, by the name of a built-in icon such as `play`. To show only the icons, turn off **Show text on buttons**. A button without an icon always shows its label.
 

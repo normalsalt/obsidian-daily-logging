@@ -14,6 +14,7 @@ import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from 
 import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
+	GROUP_SKIPPED,
 	UNKNOWN_TIME,
 	compareTasks,
 	currentSlot,
@@ -22,6 +23,7 @@ import {
 	groupByTag,
 	groupOf,
 	isRunning,
+	isSkippedToday,
 	isVisible,
 	readTask,
 	scheduledDay,
@@ -48,8 +50,12 @@ export class TaskView extends ItemView {
 	/** 一覧を描く場所（上部のボタンは描き直さない） */
 	private listEl: HTMLElement | null = null;
 
-	/** 今表示しているグループの見出しの名前と、実行中か、今の時間帯のグループか */
-	private shownGroups: { title: string; running: boolean; current: boolean }[] = [];
+	/** 今表示しているグループの見出しの名前と、実行中か、今の時間帯のグループか、スキップ済みか */
+	private shownGroups: { title: string; running: boolean; current: boolean; skipped: boolean }[] =
+		[];
+
+	/** スキップ済みのグループを開いているか（保存しないので、開き直すと閉じた状態から始まる） */
+	private skippedOpen = false;
 
 	/** グループをまとめて閉じる・開くボタン */
 	private collapseToggleEl: HTMLElement | null = null;
@@ -63,7 +69,7 @@ export class TaskView extends ItemView {
 	/** 今表示しているタスクのパス（再描画が必要かの判定に使う） */
 	private shown = new Set<string>();
 
-	/** 今表示しているタスクを、一覧の上からの順に（閉じたグループも含む。就寝でスキップする順） */
+	/** 今表示しているタスクを、一覧の上からの順に（閉じたグループも含む。スキップ済みは除く。就寝でスキップする順） */
 	private shownOrder: TaskEntry[] = [];
 
 	/** 今表示している論理上の日付 */
@@ -213,7 +219,7 @@ export class TaskView extends ItemView {
 		);
 	}
 
-	/** 今日表示するタスクを集める */
+	/** 今日表示するタスクと、今日スキップしたタスクを集める */
 	private collect(ctx: TaskContext): TaskEntry[] {
 		const names = this.plugin.taskPropNames();
 		const dn = getDailyNotes(this.app);
@@ -225,7 +231,7 @@ export class TaskView extends ItemView {
 			if (file === holidayNote) continue; // 休日の判定に使うノートはタスクではない
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 			const props = readTask(fm, names);
-			if (!props || !isVisible(props, ctx)) continue;
+			if (!props || !(isVisible(props, ctx) || isSkippedToday(props, ctx))) continue;
 			entries.push({
 				file,
 				name: this.titleOf(file) ?? file.basename,
@@ -269,6 +275,7 @@ export class TaskView extends ItemView {
 		const labels = this.plugin.taskLabels();
 		if (group === GROUP_RUNNING) return labels.running;
 		if (group === GROUP_OTHER) return labels.other;
+		if (group === GROUP_SKIPPED) return labels.skipped;
 		return ctx.slots[group]?.heading ?? labels.other;
 	}
 
@@ -287,17 +294,21 @@ export class TaskView extends ItemView {
 		root.empty();
 
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
-		this.shownOrder = groups.flatMap((group) =>
+		// 就寝の行を置けるグループか（実行中とスキップ済みには置かない）
+		const holdsSleep = (g: number) => g !== GROUP_RUNNING && g !== GROUP_SKIPPED;
+		this.shownOrder = groups.filter((g) => g !== GROUP_SKIPPED).flatMap((group) =>
 			groupByTag(entries.filter((e) => e.group === group).sort(compareTasks)).flatMap((item) =>
 				'tag' in item ? item.entries : [item],
 			),
 		);
-		// タスクが1件もなければ、今の時間帯の見出し（件数 0）の中に「タスクなし」と就寝の行を出す
-		if (entries.length === 0 && this.shownSlot !== null) groups.push(this.shownSlot);
+		// 実行中とスキップ済みのほかにタスクがなければ、今の時間帯の見出し（件数 0）の中に
+		// 「タスクなし」と就寝の行を出す
+		if (!groups.some(holdsSleep) && this.shownSlot !== null) groups.push(this.shownSlot);
 		this.shownGroups = groups.map((group) => ({
 			title: this.groupTitle(group, ctx),
 			running: group === GROUP_RUNNING,
 			current: group === this.shownSlot,
+			skipped: group === GROUP_SKIPPED,
 		}));
 		this.updateCollapseToggle();
 
@@ -305,17 +316,11 @@ export class TaskView extends ItemView {
 			root.createEl('p', { cls: 'daily-logging-warning', text: NO_DAILY_NOTES_MESSAGE });
 		}
 
-		if (groups.length === 0) {
-			root.createEl('p', { cls: 'daily-logging-empty', text: 'No tasks for today.' });
-			this.renderSleepRow(root.createDiv({ cls: 'daily-logging-group' }).createEl('ul'));
-			return;
-		}
-
 		let lastList: HTMLElement | null = null;
 		for (const group of groups) {
 			const title = this.groupTitle(group, ctx);
 			const sorted = entries.filter((e) => e.group === group).sort(compareTasks);
-			const collapsed = this.plugin.settings.collapsedGroups.includes(title);
+			const collapsed = this.isCollapsed({ title, skipped: group === GROUP_SKIPPED });
 
 			// 見出しを押すと、グループを閉じたり開いたりする（見出しには件数を出す）
 			const section = root.createDiv({ cls: 'daily-logging-group' });
@@ -334,7 +339,8 @@ export class TaskView extends ItemView {
 				this.remainingEl = heading.createSpan({ cls: 'daily-logging-remaining' });
 				this.updateRemaining(ctx);
 			}
-			const toggle = () => this.toggleGroup(title);
+			const toggle = () =>
+				group === GROUP_SKIPPED ? this.toggleSkippedGroup() : this.toggleGroup(title);
 			heading.addEventListener('click', toggle);
 			heading.addEventListener('keydown', (evt) => {
 				if (evt.key === 'Enter' || evt.key === ' ') {
@@ -343,10 +349,10 @@ export class TaskView extends ItemView {
 				}
 			});
 			// 閉じたグループが最後なら、就寝の行も一緒に隠す
-			lastList = null;
+			if (holdsSleep(group)) lastList = null;
 			if (collapsed) continue;
 			const list = section.createEl('ul');
-			lastList = list;
+			if (holdsSleep(group)) lastList = list;
 			if (sorted.length === 0) {
 				list.createEl('li', {
 					cls: ['daily-logging-task', 'daily-logging-empty-row'],
@@ -366,7 +372,13 @@ export class TaskView extends ItemView {
 				for (const e of item.entries) this.renderTask(subList, e, ctx);
 			}
 		}
-		// 就寝の行は最後のグループの末尾に置く
+		// 実行中とスキップ済みのほかにグループがなければ、「タスクなし」と就寝の行を出す
+		if (!groups.some(holdsSleep)) {
+			root.createEl('p', { cls: 'daily-logging-empty', text: 'No tasks for today.' });
+			this.renderSleepRow(root.createDiv({ cls: 'daily-logging-group' }).createEl('ul'));
+			return;
+		}
+		// 就寝の行は、実行中とスキップ済みを除いた最後のグループの末尾に置く
 		if (lastList) this.renderSleepRow(lastList);
 	}
 
@@ -410,6 +422,19 @@ export class TaskView extends ItemView {
 		);
 	}
 
+	/** スキップ済みのグループを閉じたり開いたりする（自分で開くまでは閉じたまま） */
+	private toggleSkippedGroup(): void {
+		this.skippedOpen = !this.skippedOpen;
+		this.render();
+	}
+
+	/** グループが閉じているか。スキップ済みのグループは、開いたときだけ開く */
+	private isCollapsed(g: { title: string; skipped: boolean }): boolean {
+		return g.skipped
+			? !this.skippedOpen
+			: this.plugin.settings.collapsedGroups.includes(g.title);
+	}
+
 	/** ボタンで閉じずに残すグループか（実行中と、設定がオンなら今の時間帯） */
 	private keepsOpen(g: { running: boolean; current: boolean }): boolean {
 		return g.running || (g.current && this.plugin.settings.keepCurrentGroupOpen);
@@ -417,8 +442,7 @@ export class TaskView extends ItemView {
 
 	/** 閉じられるグループのうち、開いているものがあるか */
 	private canCollapse(): boolean {
-		const collapsed = this.plugin.settings.collapsedGroups;
-		return this.shownGroups.some((g) => !this.keepsOpen(g) && !collapsed.includes(g.title));
+		return this.shownGroups.some((g) => !this.keepsOpen(g) && !this.isCollapsed(g));
 	}
 
 	/** まとめて閉じる・開くボタンのアイコンとラベルを、今の状態に合わせる */
@@ -432,13 +456,18 @@ export class TaskView extends ItemView {
 
 	/** 表示しているグループのうち、残すグループのほかを閉じる（残すグループは開く） */
 	private collapseOthers(): void {
-		const keep = new Set(this.shownGroups.filter((g) => this.keepsOpen(g)).map((g) => g.title));
-		const others = this.shownGroups.filter((g) => !this.keepsOpen(g)).map((g) => g.title);
+		this.skippedOpen = false;
+		const groups = this.shownGroups.filter((g) => !g.skipped);
+		const keep = new Set(groups.filter((g) => this.keepsOpen(g)).map((g) => g.title));
+		const others = groups.filter((g) => !this.keepsOpen(g)).map((g) => g.title);
 		const collapsed = this.plugin.settings.collapsedGroups.filter((t) => !keep.has(t));
 		this.setCollapsed([...new Set([...collapsed, ...others])]);
 	}
 
-	/** 閉じているグループを入れ替えて描き直し、data.json に保存する（既定値の配列は書き換えない） */
+	/**
+	 * 閉じているグループを入れ替えて描き直し、data.json に保存する（既定値の配列は書き換えない）。
+	 * スキップ済みのグループは、自分で開くまで閉じたままにするので、ここでは開かない
+	 */
 	private setCollapsed(titles: string[]): void {
 		this.plugin.settings.collapsedGroups = titles;
 		this.render();
@@ -493,7 +522,10 @@ export class TaskView extends ItemView {
 			)
 				? [{ title: 'Forgot to end', icon: 'check', run: () => this.plugin.forgotEndTask(file) }]
 				: [
-						{ title: 'Skip', icon: 'skip-forward', run: () => this.plugin.skipTask(file) },
+						// スキップ済みのタスクには、スキップを出さない
+						...(entry.group === GROUP_SKIPPED
+							? []
+							: [{ title: 'Skip', icon: 'skip-forward', run: () => this.plugin.skipTask(file) }]),
 						{ title: 'Forgot to start', icon: 'play', run: () => this.plugin.forgotStartTask(file) },
 						{ title: 'Already done', icon: 'check-check', run: () => this.plugin.doneTask(file) },
 					];

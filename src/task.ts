@@ -46,8 +46,9 @@ export interface TaskContext {
 	isHoliday: boolean; // 論理上の今日が休日か
 }
 
-/** グループの並び順。実行中、その他、時間帯（0, 1, 2…）の順 */
-export const GROUP_RUNNING = -2;
+/** グループの並び順。実行中、スキップ済み、その他、時間帯（0, 1, 2…）の順 */
+export const GROUP_RUNNING = -3;
+export const GROUP_SKIPPED = -2;
 export const GROUP_OTHER = -1;
 
 const DATE_FORMATS = ['YYYY-MM-DDTHH:mm:ss', 'YYYY-MM-DDTHH:mm', 'YYYY-MM-DD HH:mm', 'YYYY-MM-DD'];
@@ -144,11 +145,16 @@ function matchesCycle(t: TaskProps, ctx: TaskContext): boolean {
 	);
 }
 
-/** サイドバーに表示するか */
+/** 今日スキップしたタスクか（実行中なら、スキップしていても false） */
+export function isSkippedToday(t: TaskProps, ctx: TaskContext): boolean {
+	return !isRunning(t) && t.skipped !== null && scheduledDay(t.skipped, ctx).isSame(ctx.today, 'day');
+}
+
+/** サイドバーのグループに表示するか（今日スキップしたタスクは、スキップ済みのグループに別に出す） */
 export function isVisible(t: TaskProps, ctx: TaskContext): boolean {
 	if (isRunning(t)) return true;
 	// 今日スキップしたタスクは、実行中でなければ、ほかの条件より優先して隠す
-	if (t.skipped && scheduledDay(t.skipped, ctx).isSame(ctx.today, 'day')) return false;
+	if (isSkippedToday(t, ctx)) return false;
 	if (t.scheduled) {
 		// 未来の予定は周期より優先して隠す。今日以前の予定は、終了して空になるまで表示する
 		return !scheduledDay(t.scheduled, ctx).isAfter(ctx.today, 'day');
@@ -157,8 +163,9 @@ export function isVisible(t: TaskProps, ctx: TaskContext): boolean {
 	return matchesCycle(t, ctx);
 }
 
-/** グループ（GROUP_RUNNING、GROUP_OTHER、または時間帯の番号） */
+/** グループ（GROUP_SKIPPED、GROUP_RUNNING、GROUP_OTHER、または時間帯の番号） */
 export function groupOf(t: TaskProps, ctx: TaskContext): number {
+	if (isSkippedToday(t, ctx)) return GROUP_SKIPPED;
 	if (isRunning(t)) return GROUP_RUNNING;
 
 	// 予定日を過ぎたタスクは、セクションも無視して「その他」に入れる

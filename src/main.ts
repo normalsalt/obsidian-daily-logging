@@ -733,6 +733,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		sleep: string;
 		running: string;
 		other: string;
+		skipped: string;
 	} {
 		const s = this.settings;
 		const d = DEFAULT_SETTINGS;
@@ -747,6 +748,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			sleep: pick(s.sleepLabel, d.sleepLabel),
 			running: pick(s.runningGroupLabel, d.runningGroupLabel),
 			other: pick(s.otherGroupLabel, d.otherGroupLabel),
+			skipped: pick(s.skippedGroupLabel, d.skippedGroupLabel),
 		};
 	}
 

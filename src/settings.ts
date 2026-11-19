@@ -76,6 +76,7 @@ export interface DailyLoggingSettings {
 	/** タスク一覧のグループ名 */
 	runningGroupLabel: string;
 	otherGroupLabel: string;
+	skippedGroupLabel: string;
 
 	/** 予定を返す GAS ウェブアプリの URL */
 	calendarUrl: string;
@@ -136,6 +137,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	sleepLabel: 'Bedtime',
 	runningGroupLabel: 'Running',
 	otherGroupLabel: 'Other',
+	skippedGroupLabel: 'Skipped',
 
 	calendarUrl: '',
 	calendarToken: '',
@@ -459,6 +461,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Other group name',
 						desc: 'Group name for tasks that match no time slot.',
 						control: { type: 'text', key: 'otherGroupLabel', placeholder: d.otherGroupLabel },
+					},
+					{
+						name: 'Skipped group name',
+						desc: 'Group name for tasks skipped today, shown below the running tasks.',
+						control: { type: 'text', key: 'skippedGroupLabel', placeholder: d.skippedGroupLabel },
 					},
 				],
 			},
