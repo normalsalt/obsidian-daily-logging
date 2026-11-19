@@ -1,5 +1,5 @@
-import { Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
-import type { App } from 'obsidian';
+import { MarkdownView, Notice, TFile, TFolder, moment, normalizePath } from 'obsidian';
+import type { App, Editor } from 'obsidian';
 import { isBlank, isEmptyItem } from './time-slots';
 import type { Inserted } from './time-slots';
 
@@ -141,13 +141,52 @@ export async function updateDailyNote(
 	const dailyNote = await getOrCreateDailyNote(dn, date);
 	let line = 0;
 	let text = '';
-	await app.vault.process(dailyNote, (data) => {
+	const apply = (data: string): string => {
 		const inserted = update(data, dailyNote);
 		line = inserted.line;
 		text = inserted.data.split('\n')[line] ?? '';
 		return inserted.data;
-	});
+	};
+
+	// 開いているなら、エディターの内容を書き換える。ディスクだけを書き換えると、
+	// 保存前の入力との突き合わせで追記が二重に入る（見出しが重複する）ことがあるため
+	const editor = openEditor(app, dailyNote);
+	if (editor) {
+		const before = editor.getValue();
+		replaceChanged(editor, before, apply(before));
+	} else {
+		await app.vault.process(dailyNote, apply);
+	}
 	return { file: dailyNote, line, text };
+}
+
+/** そのファイルを開いているエディター。なければ null */
+function openEditor(app: App, file: TFile): Editor | null {
+	const view = app.workspace
+		.getLeavesOfType('markdown')
+		.map((l) => l.view)
+		.find((v) => v instanceof MarkdownView && v.file?.path === file.path);
+	return view instanceof MarkdownView ? view.editor : null;
+}
+
+/** 前後の共通部分を除いた、変わった範囲だけを置き換える（カーソルや折りたたみを保つため） */
+function replaceChanged(editor: Editor, before: string, after: string): void {
+	if (before === after) return;
+	let start = 0;
+	while (start < before.length && start < after.length && before[start] === after[start]) start++;
+	let end = 0;
+	while (
+		end < before.length - start &&
+		end < after.length - start &&
+		before[before.length - 1 - end] === after[after.length - 1 - end]
+	) {
+		end++;
+	}
+	editor.replaceRange(
+		after.slice(start, after.length - end),
+		editor.offsetToPos(start),
+		editor.offsetToPos(before.length - end),
+	);
 }
 
 /** 末尾に1行追記する。末尾に続く空の箇条書きは消す（空行は残す） */
