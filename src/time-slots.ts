@@ -96,20 +96,31 @@ interface HeadingLine {
 	text: string;
 }
 
+/** コードブロックの区切りの行。リストの記号や引用の > の後ろにあってもよい */
+const FENCE = /^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]+|>[ \t]?)*(`{3,}|~{3,})(.*)$/;
+
 /** 見出し行を探す（コードブロックの中は除く） */
 function findHeadings(lines: string[]): HeadingLine[] {
 	const result: HeadingLine[] = [];
-	let fence: string | null = null;
+	let fence: string | null = null; // 開いているコードブロックの区切り
 
 	lines.forEach((line, index) => {
-		const f = /^\s*(```|~~~)/.exec(line);
-		if (f) {
-			const mark = f[1] ?? '';
-			if (fence === null) fence = mark;
-			else if (mark === fence) fence = null;
+		const f = FENCE.exec(line);
+		const mark = f?.[1] ?? '';
+		const rest = f?.[2] ?? '';
+		if (fence === null) {
+			// ``` の後ろの文字（言語名など）に ` は入らない
+			if (f && !(mark.startsWith('`') && rest.includes('`'))) {
+				fence = mark;
+				return;
+			}
+		} else {
+			// 閉じるのは、同じ記号で同じ長さ以上、後ろに文字がない行だけ
+			if (f && mark[0] === fence[0] && mark.length >= fence.length && rest.trim() === '') {
+				fence = null;
+			}
 			return;
 		}
-		if (fence !== null) return;
 		const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
 		if (m) result.push({ index, level: (m[1] ?? '').length, text: m[2] ?? '' });
 	});
