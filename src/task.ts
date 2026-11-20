@@ -267,6 +267,11 @@ export function rowScale(t: TaskProps): number {
 	return 1 + (t.estimate ?? 0) / 120;
 }
 
+/** タスク一覧の名前を折り返す行数。見積時間 60 分ごとに 1 行ずつ増やす（なければ 1） */
+export function nameLines(t: TaskProps): number {
+	return 1 + Math.floor((t.estimate ?? 0) / 60);
+}
+
 /** 開始日時・終了日時に書き込む形式（分単位） */
 export const PROP_DATE_FORMAT = 'YYYY-MM-DDTHH:mm';
 

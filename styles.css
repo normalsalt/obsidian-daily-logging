@@ -148,10 +148,20 @@
 	text-decoration-line: var(--link-decoration);
 }
 
+/* 広げた行の名前は、見積時間に応じた行数まで折り返し、それを超えたら省略する */
+.daily-logging-task.is-multiline .daily-logging-task-name {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: var(--daily-logging-name-lines);
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
 /* 省略された名前は、行にマウスを乗せている間（ボタンの上でも）だけ折り返して全文を出す */
 .daily-logging-task:hover .daily-logging-task-name {
 	white-space: normal;
 	overflow-wrap: anywhere;
+	-webkit-line-clamp: unset;
 }
 
 /*

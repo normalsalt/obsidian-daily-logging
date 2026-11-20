@@ -25,6 +25,7 @@ import {
 	isRunning,
 	isSkippedToday,
 	isVisible,
+	nameLines,
 	readTask,
 	rowScale,
 	scheduledDay,
@@ -528,10 +529,15 @@ export class TaskView extends ItemView {
 	private renderTask(list: HTMLElement, entry: TaskEntry, ctx: TaskContext): void {
 		const item = list.createEl('li', { cls: 'daily-logging-task' });
 		if (isRunning(entry.props)) item.addClass('is-running');
-		// 見積時間があれば、その分だけ行を高くする
+		// 見積時間があれば、その分だけ行を高くし、名前は見積時間に応じた行数まで折り返す
 		if (entry.props.estimate !== null) {
+			const lines = nameLines(entry.props);
 			item.addClass('has-estimate');
-			item.setCssProps({ '--daily-logging-row-scale': String(rowScale(entry.props)) });
+			item.toggleClass('is-multiline', lines >= 2);
+			item.setCssProps({
+				'--daily-logging-row-scale': String(rowScale(entry.props)),
+				'--daily-logging-name-lines': String(lines),
+			});
 		}
 
 		item.createEl('a', { cls: 'daily-logging-task-name', text: entry.name });
