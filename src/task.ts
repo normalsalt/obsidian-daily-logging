@@ -12,6 +12,7 @@ export interface TaskPropNames {
 	end: string;
 	time: string;
 	skip: string;
+	estimate: string;
 	tag: string;
 	location: string;
 }
@@ -30,6 +31,7 @@ export interface TaskProps {
 	end: Moment | null;
 	time: number | null; // 予定時刻（0:00 からの分）
 	skipped: TaskDate | null;
+	estimate: number | null; // 見積時間（分）。なければ null
 	tag: string; // 1つ目のタグ（先頭の # は外す。なければ空）
 }
 
@@ -65,6 +67,12 @@ function toMinutes(value: unknown): number | null {
 	return typeof value === 'string' ? parseTime(value) : null;
 }
 
+/** 正の数（数値か、数の文字列）を返す。それ以外は null */
+function toPositiveNumber(value: unknown): number | null {
+	const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value.trim()) : NaN;
+	return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function toStringList(value: unknown): string[] {
 	const list: unknown[] = Array.isArray(value) ? value : [value];
 	return list
@@ -92,6 +100,7 @@ export function readTask(fm: Record<string, unknown> | undefined, names: TaskPro
 		end: toTaskDate(fm[names.end])?.value ?? null,
 		time: toMinutes(fm[names.time]),
 		skipped: toTaskDate(fm[names.skip]),
+		estimate: toPositiveNumber(fm[names.estimate]),
 		tag: (toStringList(fm[names.tag])[0] ?? '').replace(/^#/, ''),
 	};
 }
@@ -251,6 +260,11 @@ export function groupByTag<T extends { props: TaskProps }>(sorted: T[]): (T | Ta
 		}
 	}
 	return result;
+}
+
+/** タスク一覧の行の高さの倍率。見積時間 60 分ごとに 0.5 倍ずつ高くする（なければ 1） */
+export function rowScale(t: TaskProps): number {
+	return 1 + (t.estimate ?? 0) / 120;
 }
 
 /** 開始日時・終了日時に書き込む形式（分単位） */

@@ -50,6 +50,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 | `scheduled` | Date & time | Show the task on this day                                      |
 | `time`      | Text        | Time of day, such as `18:00`. Used like the time of `scheduled` when `scheduled` is empty |
 | `skipped`   | Date & time | Set by the plugin when you skip the task. Hides the task from the list on this day, unless it is running. Cleared when you start the task or mark it as already done |
+| `estimate`  | Number      | Estimated time in minutes. The task's row in the list is taller by half its height for every 60 minutes, such as 1.5 times for `60` |
 | `started`   | Date & time | Set by the plugin when you start the task                      |
 | `ended`     | Date & time | Set by the plugin when you end or interrupt the task           |
 

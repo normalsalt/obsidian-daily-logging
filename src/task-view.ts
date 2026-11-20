@@ -26,6 +26,7 @@ import {
 	isSkippedToday,
 	isVisible,
 	readTask,
+	rowScale,
 	scheduledDay,
 	slotEnd,
 } from './task';
@@ -220,6 +221,7 @@ export class TaskView extends ItemView {
 					this.render();
 				} else {
 					this.updateTimers(ctx);
+					this.measureRowHeight(); // 一覧が隠れていて測れなかったときのため
 				}
 			}, 10_000),
 		);
@@ -298,6 +300,8 @@ export class TaskView extends ItemView {
 		this.elapsedEls = [];
 		this.updateDailyNav();
 		root.empty();
+		// 描き終えてから、見積時間のない行の高さを測る（行の高さを広げる基準）
+		window.requestAnimationFrame(() => this.measureRowHeight());
 
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
 		// 就寝の行を置けるグループか（実行中とスキップ済みには置かない）
@@ -494,6 +498,19 @@ export class TaskView extends ItemView {
 		setEnabled(els.next, available && this.plugin.adjacentDailyNote(1) !== null);
 	}
 
+	/**
+	 * 見積時間のない、ボタンのある行の高さを測り、一覧の CSS 変数に入れる。
+	 * 一覧が隠れていて測れない（0）ときや、そういう行がないときは、前の値のままにする
+	 */
+	private measureRowHeight(): void {
+		const root = this.listEl;
+		const row = root?.querySelector<HTMLElement>(
+			'.daily-logging-task:not(.has-estimate):not(.daily-logging-empty-row)',
+		);
+		const height = row?.getBoundingClientRect().height ?? 0;
+		if (root && height > 0) root.setCssProps({ '--daily-logging-row-height': `${height}px` });
+	}
+
 	/** 残り時間と、実行中のタスクの経過時間を書き換える */
 	private updateTimers(ctx: TaskContext): void {
 		this.updateRemaining(ctx);
@@ -511,6 +528,11 @@ export class TaskView extends ItemView {
 	private renderTask(list: HTMLElement, entry: TaskEntry, ctx: TaskContext): void {
 		const item = list.createEl('li', { cls: 'daily-logging-task' });
 		if (isRunning(entry.props)) item.addClass('is-running');
+		// 見積時間があれば、その分だけ行を高くする
+		if (entry.props.estimate !== null) {
+			item.addClass('has-estimate');
+			item.setCssProps({ '--daily-logging-row-scale': String(rowScale(entry.props)) });
+		}
 
 		item.createEl('a', { cls: 'daily-logging-task-name', text: entry.name });
 		// ボタンのほかの場所を押したら、タスクのノートを開く

@@ -31,6 +31,8 @@ export interface DailyLoggingSettings {
 	timeProp: string;
 	/** スキップ日時のプロパティ名 */
 	skipProp: string;
+	/** 見積時間（分）のプロパティ名。タスク一覧の行の高さに使う */
+	estimateProp: string;
 	/** repeat の値の表記 */
 	everydayValue: string;
 	/** 月曜日〜日曜日の表記（カンマ区切りで7つ） */
@@ -108,6 +110,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	startProp: 'started',
 	endProp: 'ended',
 	timeProp: 'time',
+	estimateProp: 'estimate',
 	skipProp: 'skipped',
 	everydayValue: 'Every day',
 	weekdayValues: 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday',
@@ -332,6 +335,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Skip property',
 						desc: 'Date & time property set when a task is skipped. If it is today, the task is hidden from the sidebar for the day, unless it is running.',
 						control: { type: 'text', key: 'skipProp', placeholder: d.skipProp },
+					},
+					{
+						name: 'Estimate property',
+						desc: 'Number property that holds the estimated time in minutes. The row of the task in the task list is taller by half its height for every 60 minutes.',
+						control: { type: 'text', key: 'estimateProp', placeholder: d.estimateProp },
 					},
 					{
 						name: 'Start property',

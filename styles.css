@@ -118,6 +118,14 @@
 }
 
 /*
+ * 見積時間のあるタスクの行は、見積時間のない行の高さ（一覧で測った値）に倍率を掛けた高さを最低にする。
+ * 測れるまでは普通の高さ
+ */
+.daily-logging-task.has-estimate {
+	min-height: calc(var(--daily-logging-row-height, 0px) * var(--daily-logging-row-scale, 1));
+}
+
+/*
  * マウスを乗せた行は、検索結果と同じ選択色を重ねる。背景色ではなく背景画像にして、
  * 実行中・今の時間帯の行の背景色を上書きせずに、その上に重ねる
  */
