@@ -38,6 +38,8 @@ Under each entry, an empty bullet indented one level is added, so you can write 
 
 When you open a daily note, the cursor moves to the end of the note, so you can start writing right away. If the note ends with an empty bullet, the cursor goes to that bullet. It doesn't move when you only switch tabs, or when a link to a heading or block opened the note. You can turn this off with **Move the cursor to the end of daily notes** in the settings.
 
+Daily notes open in the right pane, and other notes open in the left pane, whether you open them from a link, the file explorer, the quick switcher, or the task list. If there is only one pane, opening a daily note splits it. If the pane already exists, a new tab is added to it, so the editor is never split into more than two panes. If the note is already open in that pane, its tab is shown instead. If the note is already open in the other pane, that tab is closed. Tabs you have already opened are never moved. You can turn this off with **Open daily notes on the right** in the settings.
+
 ## Task list
 
 Open the list from the ribbon or with the **Open task list** command. Any Markdown file with one of the following properties is treated as a task. You can change the property names in the settings.

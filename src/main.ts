@@ -52,6 +52,8 @@ import type { Moment, TaskContext, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
 import { InterruptionModal, LinkModal, SkipWarningModal, findLinks } from './link-modal';
+import { isOnSide, routeOpenFile } from './tiles';
+import type { Side } from './tiles';
 
 /** 作成から何ミリ秒以内に開かれたら記録するか */
 const OPEN_WINDOW_MS = 5000;
@@ -89,6 +91,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new DailyLoggingSettingTab(this.app, this));
 		this.registerView(VIEW_TYPE_TASKS, (leaf) => new TaskView(leaf, this));
+		this.register(routeOpenFile(this.app, (file) => this.sideOf(file)));
 		this.addRibbonIcon('list-checks', 'Open task list', () => {
 			void this.activateTaskView();
 		});
@@ -578,6 +581,8 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!leaf) {
 			leaf = workspace.getLeaf('tab');
 			await leaf.openFile(logged.file);
+			// 右のタイルへ振り分けられたら、開いたのは別のタブ
+			leaf = this.leafShowing(logged.file) ?? leaf;
 		}
 		workspace.setActiveLeaf(leaf, { focus: true });
 		await workspace.revealLeaf(leaf);
@@ -597,11 +602,24 @@ export default class DailyLoggingPlugin extends Plugin {
 		editor.focus();
 	}
 
-	/** そのファイルを表示しているタブ。なければ undefined */
+	/** そのファイルを表示しているタブ（振り分けるなら、行き先のタイルにあるものだけ）。なければ undefined */
 	private leafShowing(file: TFile): WorkspaceLeaf | undefined {
+		const side = this.sideOf(file);
 		return this.app.workspace
 			.getLeavesOfType('markdown')
-			.find((l) => l.view instanceof MarkdownView && l.view.file?.path === file.path);
+			.find(
+				(l) =>
+					l.view instanceof MarkdownView &&
+					l.view.file?.path === file.path &&
+					isOnSide(this.app, l, side),
+			);
+	}
+
+	/** ファイルを開くタイル。デイリーノートは右、それ以外は左。設定がオフなら null */
+	private sideOf(file: TFile): Side {
+		if (!this.settings.splitDailyNotes) return null;
+		const dn = getDailyNotes(this.app);
+		return dn && isDailyNote(file, dn) ? 'right' : 'left';
 	}
 
 	/** そのファイルを開いているタブがあれば前に出し、なければ今のタブで開く */
@@ -611,6 +629,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (!leaf) {
 			leaf = workspace.getLeaf(false);
 			await leaf.openFile(file);
+			leaf = this.leafShowing(file) ?? leaf;
 		}
 		workspace.setActiveLeaf(leaf, { focus: true });
 		await workspace.revealLeaf(leaf);

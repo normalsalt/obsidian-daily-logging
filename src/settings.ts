@@ -10,6 +10,8 @@ export interface DailyLoggingSettings {
 	childBullet: boolean;
 	/** デイリーノートを開いたら、カーソルをファイルの末尾に置く */
 	cursorToEnd: boolean;
+	/** デイリーノートを右のタイルで、それ以外のノートを左のタイルで開く */
+	splitDailyNotes: boolean;
 	/** 時間帯の見出しの下に追記する */
 	useHeadings: boolean;
 	/** 最初の時間帯より前は、前日の最後の時間帯に追記する */
@@ -92,6 +94,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	extensions: 'md',
 	childBullet: true,
 	cursorToEnd: true,
+	splitDailyNotes: true,
 	useHeadings: true,
 	logToPreviousDay: true,
 	timeSlots: [
@@ -212,6 +215,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 				name: 'Move the cursor to the end of daily notes',
 				desc: 'When you open a daily note, move the cursor to the end of the note, unless a link to a heading or block opened it.',
 				control: { type: 'toggle', key: 'cursorToEnd' },
+			},
+			{
+				name: 'Open daily notes on the right',
+				desc: 'Open daily notes in the right pane and other notes in the left pane. If the pane already exists, a tab is added to it.',
+				control: { type: 'toggle', key: 'splitDailyNotes' },
 			},
 			{
 				type: 'group',
