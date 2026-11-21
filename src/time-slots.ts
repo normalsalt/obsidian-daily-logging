@@ -239,3 +239,28 @@ export function insertUnderHeading(
 	lines.push(...block, '');
 	return { data: lines.join('\n'), line: start + block.length - 1 };
 }
+
+/**
+ * 見出し（レベルは問わない）の節の最後の内容の行のすぐ下に、空行を挟まずに文字列を入れる。
+ * 節の末尾の空行は、入れた文字列の後ろに残す。
+ * 見出しがなければ、本文の最後の内容の行のすぐ下に「## 見出し」を作って入れる（見出しが空なら作らない）
+ */
+export function appendToSection(data: string, heading: string, text: string): string {
+	const lines = data.split('\n');
+	const headings = findHeadings(lines);
+	const target = heading === '' ? undefined : headings.find((h) => h.text === heading);
+	if (target) {
+		const next = headings.find((h) => h.index > target.index && h.level <= target.level);
+		let end = next ? next.index : lines.length;
+		while (end > target.index + 1 && isBlank(lines[end - 1])) end--;
+		lines.splice(end, 0, ...text.split('\n'));
+		return lines.join('\n');
+	}
+
+	const block = heading === '' ? text : `## ${heading}\n${text}`;
+	// 最後の内容の行の改行から後（末尾の空行を含む）
+	const m = /\n(?:[ \t]*\n)*[ \t]*$/.exec(data);
+	const head = m ? data.slice(0, m.index) : data;
+	const tail = m ? data.slice(m.index) : '\n';
+	return head === '' ? `${block}${tail}` : `${head}\n${block}${tail}`;
+}

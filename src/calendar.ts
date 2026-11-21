@@ -2,6 +2,7 @@ import { TFile, moment, normalizePath, requestUrl } from 'obsidian';
 import type { App } from 'obsidian';
 import { reportError } from './daily-notes';
 import { PROP_DATE_FORMAT } from './task';
+import { appendToSection } from './time-slots';
 import type { TaskPropNames } from './task';
 
 /** GAS ウェブアプリ（~/Documents/FetchEvents）が返す予定 */
@@ -62,12 +63,13 @@ function toScheduled(start: string): string | null {
 }
 
 /**
- * 本文の最後の行のすぐ下に、空行を挟まずに説明を追記する。末尾の空行は、説明の後ろに残す。
+ * 見出しの節の最後の行のすぐ下に、空行を挟まずに説明を追記する。節の末尾の空行は、説明の後ろに残す。
+ * 見出しがなければ、本文の末尾に「## 見出し」を作る。
  * 行頭のスペースは2つごとにタブにする（余った1つはスペースにする）。
  * Google カレンダーの説明は HTML 由来で、&nbsp; がノーブレークスペースで入るので、それも数える。
  * 同じ説明がすでに本文にあれば何もしない（毎日取得しても重ならないように）
  */
-function appendDescription(data: string, description: string): string {
+function appendDescription(data: string, description: string, heading: string): string {
 	const raw = description.replace(/\r\n?/g, '\n').trim();
 	const text = raw.replace(
 		/^[ \u00a0]+/gm,
@@ -75,22 +77,18 @@ function appendDescription(data: string, description: string): string {
 	);
 	// タブにする前に追記した説明も、同じものとみなす
 	if (text === '' || data.includes(text) || data.includes(raw)) return data;
-
-	// 最後の内容の行の改行から後（末尾の空行を含む）
-	const m = /\n(?:[ \t]*\n)*[ \t]*$/.exec(data);
-	const head = m ? data.slice(0, m.index) : data;
-	const tail = m ? data.slice(m.index) : '\n';
-	return head === '' ? `${text}${tail}` : `${head}\n${text}${tail}`;
+	return appendToSection(data, heading, text);
 }
 
 /**
  * 予定ごとに、保管庫直下の同じ名前のファイルを作るか更新する。
- * 予定日時と場所のプロパティは毎回上書きする（空なら値だけ空にする）。説明は本文に追記する
+ * 予定日時と場所のプロパティは毎回上書きする（空なら値だけ空にする）。説明は見出しの節に追記する
  */
 export async function syncCalendarEvents(
 	app: App,
 	events: CalendarEvent[],
 	names: TaskPropNames,
+	heading: string,
 ): Promise<{ created: number; updated: number }> {
 	let created = 0;
 	let updated = 0;
@@ -108,7 +106,7 @@ export async function syncCalendarEvents(
 				fm[names.scheduled] = toScheduled(event.start);
 				fm[names.location] = event.location || null;
 			});
-			await app.vault.process(file, (data) => appendDescription(data, event.description));
+			await app.vault.process(file, (data) => appendDescription(data, event.description, heading));
 			if (isNew) created++;
 			else updated++;
 		} catch (err) {

@@ -186,7 +186,12 @@ export default class DailyLoggingPlugin extends Plugin {
 			// 範囲の終わりは、翌日の1日の区切りの時刻
 			const until = moment().startOf('day').add(this.taskContext().boundary, 'minutes').format('HH:mm');
 			const events = await fetchCalendarEvents(config.url, config.token, until);
-			const { created, updated } = await syncCalendarEvents(this.app, events, this.taskPropNames());
+			const { created, updated } = await syncCalendarEvents(
+				this.app,
+				events,
+				this.taskPropNames(),
+				this.settings.titleHeading.trim(),
+			);
 			new Notice(`Calendar: ${created} created, ${updated} updated.`);
 		} catch (err) {
 			reportError(err);
