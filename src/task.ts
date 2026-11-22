@@ -1,6 +1,7 @@
 import { moment } from 'obsidian';
 import { logicalDate, parseTime, resolvePlacement } from './time-slots';
 import type { TimeSlot } from './time-slots';
+import type { TFile } from 'obsidian';
 
 export type Moment = ReturnType<typeof moment>;
 
@@ -260,6 +261,25 @@ export function groupByTag<T extends { props: TaskProps }>(sorted: T[]): (T | Ta
 		}
 	}
 	return result;
+}
+
+/** 今日のタスク（タスク一覧の1行） */
+export interface TaskEntry {
+	file: TFile;
+	name: string; // 表示名
+	props: TaskProps;
+	scheduled: TaskDate | null; // 予定日時（空なら予定時刻）
+	group: number;
+}
+
+/** タスク一覧と同じ並びにする（グループの順。グループの中は compareTasks の順で、同じタグをまとめる） */
+export function orderTasks(entries: TaskEntry[]): TaskEntry[] {
+	const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
+	return groups.flatMap((group) =>
+		groupByTag(entries.filter((e) => e.group === group).sort(compareTasks)).flatMap((item) =>
+			'tag' in item ? item.entries : [item],
+		),
+	);
 }
 
 /** タスク一覧の行の高さの倍率。見積時間 60 分ごとに 0.5 倍ずつ高くする（なければ 1） */

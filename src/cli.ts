@@ -1,0 +1,264 @@
+import { moment, normalizePath } from 'obsidian';
+import type { CliData, CliFlags, TFile } from 'obsidian';
+import type DailyLoggingPlugin from './main';
+import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, reportError } from './daily-notes';
+import type { LoggedLine } from './daily-notes';
+import {
+	GROUP_OTHER,
+	GROUP_RUNNING,
+	GROUP_SKIPPED,
+	UNKNOWN_TIME,
+	currentSlot,
+	formatDuration,
+	isRunning,
+	orderTasks,
+	scheduledDay,
+	slotEnd,
+} from './task';
+import type { Moment, TaskContext, TaskEntry } from './task';
+
+/** 失敗を伝える。CLI の出力は1行の「Error: …」にする */
+class CliError extends Error {}
+
+/** 対象のファイルを指定するフラグ（他の CLI コマンドと同じ） */
+const FILE_FLAGS: CliFlags = {
+	file: { value: '<name>', description: 'Task note name, resolved like a link' },
+	path: { value: '<path>', description: 'Task note path' },
+};
+
+/**
+ * Obsidian CLI のコマンドを登録する（`obsidian daily-logging:tasks` など）。
+ * CLI から実行したときは画面を変えない（デイリーノートを表示せず、モーダルも出さない）。
+ * 出すはずだった情報は、出力で返す
+ */
+export function registerCli(plugin: DailyLoggingPlugin): void {
+	const add = (
+		action: string,
+		description: string,
+		flags: CliFlags | null,
+		run: (params: CliData) => Promise<string>,
+	) => {
+		plugin.registerCliHandler(`daily-logging:${action}`, description, flags, async (params) => {
+			try {
+				return await run(params);
+			} catch (err) {
+				if (err instanceof CliError) return `Error: ${err.message}`;
+				reportError(err);
+				return `Error: ${err instanceof Error ? err.message : String(err)}`;
+			}
+		});
+	};
+
+	add(
+		'tasks',
+		"List today's tasks, in the same order as the task list",
+		{ format: { value: 'text|json', description: 'Output format (default: text)' } },
+		(params) => listTasks(plugin, params.format === 'json'),
+	);
+
+	const taskAction = (
+		action: string,
+		description: string,
+		needRunning: boolean,
+		run: (file: TFile) => Promise<string>,
+	) =>
+		add(action, description, FILE_FLAGS, async (params) => {
+			const file = targetFile(plugin, params);
+			const state = plugin.taskState(file);
+			if (state === null) throw new CliError(`${file.path} isn't a task note.`);
+			if (needRunning && state !== 'running') throw new CliError(`${file.basename} isn't running.`);
+			if (!needRunning && state === 'running') throw new CliError(`${file.basename} is already running.`);
+			requireDailyNotes(plugin);
+			return run(file);
+		});
+
+	taskAction('start', 'Start a task', false, async (file) => {
+		const { logged, links } = await plugin.beginTask(file, false, false);
+		return [loggedText(logged), ...linkLines(links)].join('\n');
+	});
+	taskAction('forgot-start', 'Mark a task as running from an unknown time', false, async (file) => {
+		const { logged, links } = await plugin.beginTask(file, true, false);
+		return [loggedText(logged), ...linkLines(links)].join('\n');
+	});
+	taskAction('end', 'End a running task', true, async (file) =>
+		loggedText(await plugin.finishTask(file, 'end', false)),
+	);
+	taskAction('interrupt', 'Interrupt a running task', true, async (file) =>
+		loggedText(await plugin.finishTask(file, 'interrupt', false)),
+	);
+	taskAction('forgot-end', 'End a running task at an unknown time', true, async (file) =>
+		loggedText(await plugin.finishTask(file, 'forgotEnd', false)),
+	);
+	taskAction('done', 'Mark a task as already done', false, async (file) =>
+		loggedText(await plugin.finishTask(file, 'done', false)),
+	);
+	taskAction('skip', 'Skip a task for today', false, async (file) => {
+		const { logged, repeats } = await plugin.skipTask(file, false);
+		const lines = [plugin.settings.logSkip ? loggedText(logged) : 'Skipped.'];
+		if (!repeats) {
+			lines.push(
+				`Note: ${file.basename} has no repeat days, so it won't appear in the task list again until it is scheduled.`,
+			);
+		}
+		return lines.join('\n');
+	});
+
+	add(
+		'interruption',
+		'Interrupt every running task and log an interruption',
+		{ name: { value: '<text>', description: 'What interrupted you', required: true } },
+		async (params) => {
+			const name = (params.name ?? '').trim();
+			if (name === '' || name === 'true') throw new CliError('Enter a name with name=<text>.');
+			requireDailyNotes(plugin);
+			return loggedText(await plugin.logInterruption(name, false));
+		},
+	);
+
+	add(
+		'bedtime',
+		'Skip every task in the list, ending running ones, and log bedtime',
+		{ confirm: { description: 'Do it. Without this flag, only shows what would happen' } },
+		async (params) => {
+			const ctx = plugin.taskContext();
+			// 一覧の就寝ボタンと同じく、スキップ済みを除いた一覧の順
+			const entries = (await todayTasks(plugin, ctx)).filter((e) => e.group !== GROUP_SKIPPED);
+			if (params.confirm !== 'true') {
+				const running = entries.filter((e) => isRunning(e.props)).length;
+				return `${entries.length} tasks will be skipped (${running} running tasks are ended first). Add confirm to go to bed.`;
+			}
+			requireDailyNotes(plugin);
+			return loggedText(await plugin.goToBed(entries.map((e) => e.file), false));
+		},
+	);
+
+	add('fetch-calendar', 'Fetch calendar events and update their notes', null, async () => {
+		if (!plugin.calendarConfig()) throw new CliError('Set the web app URL and token in the Calendar settings.');
+		const result = await plugin.syncCalendar();
+		if (!result) throw new CliError('Events are already being fetched.');
+		return `Calendar: ${result.created} created, ${result.updated} updated.`;
+	});
+}
+
+/** デイリーノートが使えなければ、通知ではなくエラーで返す */
+function requireDailyNotes(plugin: DailyLoggingPlugin): void {
+	if (!getDailyNotes(plugin.app)) throw new CliError(NO_DAILY_NOTES_MESSAGE);
+}
+
+/** file= か path= で指定したファイル。どちらもなければアクティブなファイル */
+function targetFile(plugin: DailyLoggingPlugin, params: CliData): TFile {
+	const { app } = plugin;
+	let file: TFile | null;
+	if (params.path && params.path !== 'true') {
+		file = app.vault.getFileByPath(normalizePath(params.path));
+		if (!file) throw new CliError(`File not found: ${params.path}`);
+	} else if (params.file && params.file !== 'true') {
+		file = app.metadataCache.getFirstLinkpathDest(params.file, '');
+		if (!file) throw new CliError(`File not found: ${params.file}`);
+	} else {
+		file = app.workspace.getActiveFile();
+		if (!file) throw new CliError('No file is open. Use file=<name> or path=<path>.');
+	}
+	return file;
+}
+
+/** 記録した行。記録できなかったらエラー（理由は通知と開発者コンソールに出ている） */
+function loggedText(logged: LoggedLine | null): string {
+	if (!logged) throw new CliError("Couldn't log the entry. See the notice in Obsidian.");
+	return logged.text;
+}
+
+function linkLines(links: { text: string }[]): string[] {
+	return links.length > 0 ? ['Links:', ...links.map((l) => `- ${l.text}`)] : [];
+}
+
+/** 今日のタスクを、表示名を読んでから、一覧と同じ並びにする（並び順は表示名も使うため） */
+async function todayTasks(plugin: DailyLoggingPlugin, ctx: TaskContext): Promise<TaskEntry[]> {
+	const files = plugin.collectTasks(ctx, (f) => f.basename).map((e) => e.file);
+	const titles = new Map<string, string>();
+	for (const file of files) {
+		const title = await plugin.readTitle(file);
+		if (title) titles.set(file.path, title);
+	}
+	return orderTasks(plugin.collectTasks(ctx, (f) => titles.get(f.path) ?? f.basename));
+}
+
+/** 今日のタスク一覧 */
+async function listTasks(plugin: DailyLoggingPlugin, json: boolean): Promise<string> {
+	const ctx = plugin.taskContext();
+	const now = moment();
+	const entries = await todayTasks(plugin, ctx);
+	const slot = currentSlot(ctx, now);
+	const groupTitle = (group: number) => {
+		const labels = plugin.taskLabels();
+		if (group === GROUP_RUNNING) return labels.running;
+		if (group === GROUP_SKIPPED) return labels.skipped;
+		if (group === GROUP_OTHER) return labels.other;
+		return ctx.slots[group]?.heading ?? labels.other;
+	};
+	const end = slot !== null ? slotEnd(ctx, slot) : null;
+	const remaining = end ? formatDuration(now, end) : null;
+	const available = getDailyNotes(plugin.app) !== null;
+
+	const rows = entries.map((e) => ({
+		group: groupTitle(e.group),
+		current: e.group === slot,
+		name: e.name,
+		path: e.file.path,
+		time: timeOf(e, ctx),
+		running: isRunning(e.props),
+		elapsed: elapsedOf(e, now),
+		estimate: e.props.estimate,
+		tag: e.props.tag || null,
+	}));
+
+	if (json) {
+		return JSON.stringify(
+			{
+				today: ctx.today.format('YYYY-MM-DD'),
+				currentSlot: slot !== null ? groupTitle(slot) : null,
+				remaining,
+				dailyNotesAvailable: available,
+				tasks: rows,
+			},
+			null,
+			2,
+		);
+	}
+
+	const lines: string[] = [];
+	if (!available) lines.push(`Warning: ${NO_DAILY_NOTES_MESSAGE}`);
+	const current = slot !== null ? `, current time slot: ${groupTitle(slot)} (${remaining ?? ''} left)` : '';
+	lines.push(`Today: ${ctx.today.format('YYYY-MM-DD')}${current}`);
+	if (rows.length === 0) lines.push('No tasks.');
+	let last: string | null = null;
+	for (const row of rows) {
+		if (row.group !== last) {
+			const count = rows.filter((r) => r.group === row.group).length;
+			lines.push('', `## ${row.group} (${count})${row.current ? ' [current]' : ''}`);
+			last = row.group;
+		}
+		const fields = [`path=${row.path}`];
+		if (row.running) fields.push(`running=${row.elapsed ?? ''}`);
+		if (row.estimate !== null) fields.push(`estimate=${row.estimate}`);
+		if (row.tag) fields.push(`tag=${row.tag}`);
+		lines.push(`- ${row.time ? `${row.time} ` : ''}${row.name} | ${fields.join(' | ')}`);
+	}
+	return lines.join('\n');
+}
+
+/** 予定時刻。今日なら HH:mm、ほかの日なら日付も付ける。時刻がなければ日付だけ（今日なら null） */
+function timeOf(e: TaskEntry, ctx: TaskContext): string | null {
+	const s = e.scheduled;
+	if (!s) return null;
+	const today = scheduledDay(s, ctx).isSame(ctx.today, 'day');
+	if (today) return s.hasTime ? s.value.format('HH:mm') : null;
+	return s.value.format(s.hasTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD');
+}
+
+/** 実行中なら開始からの経過時間（開始時刻が分からなければ ??:??）。実行中でなければ null */
+function elapsedOf(e: TaskEntry, now: Moment): string | null {
+	const start = isRunning(e.props) ? e.props.start : null;
+	if (!start) return null;
+	return e.props.startKnown ? formatDuration(start, now) : UNKNOWN_TIME;
+}

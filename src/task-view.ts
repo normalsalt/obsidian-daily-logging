@@ -3,14 +3,13 @@ import {
 	Keymap,
 	Menu,
 	debounce,
-	getFrontMatterInfo,
 	moment,
 	setIcon,
 	setTooltip,
 } from 'obsidian';
 import type { TFile, WorkspaceLeaf } from 'obsidian';
 import type DailyLoggingPlugin from './main';
-import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
+import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, reportError } from './daily-notes';
 import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
@@ -18,33 +17,21 @@ import {
 	UNKNOWN_TIME,
 	compareTasks,
 	currentSlot,
-	effectiveScheduled,
 	formatDuration,
 	groupByTag,
-	groupOf,
 	isRunning,
-	isSkippedToday,
-	isVisible,
 	nameLines,
+	orderTasks,
 	readTask,
 	rowScale,
 	scheduledDay,
 	slotEnd,
 } from './task';
-import type { Moment, TaskContext, TaskDate, TaskProps } from './task';
+import type { Moment, TaskContext, TaskEntry } from './task';
 import { isIconId } from './settings';
 import { SleepConfirmModal } from './link-modal';
-import { firstOpenItem } from './time-slots';
 
 export const VIEW_TYPE_TASKS = 'daily-logging-tasks';
-
-interface TaskEntry {
-	file: TFile;
-	name: string;
-	props: TaskProps;
-	scheduled: TaskDate | null; // 予定日時（空なら予定時刻）
-	group: number;
-}
 
 export class TaskView extends ItemView {
 	plugin: DailyLoggingPlugin;
@@ -228,30 +215,6 @@ export class TaskView extends ItemView {
 		);
 	}
 
-	/** 今日表示するタスクと、今日スキップしたタスクを集める */
-	private collect(ctx: TaskContext): TaskEntry[] {
-		const names = this.plugin.taskPropNames();
-		const dn = getDailyNotes(this.app);
-		const holidayNote = this.plugin.holidayNote();
-		const entries: TaskEntry[] = [];
-
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			if (dn && isDailyNote(file, dn)) continue;
-			if (file === holidayNote) continue; // 休日の判定に使うノートはタスクではない
-			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-			const props = readTask(fm, names);
-			if (!props || !(isVisible(props, ctx) || isSkippedToday(props, ctx))) continue;
-			entries.push({
-				file,
-				name: this.titleOf(file) ?? file.basename,
-				props,
-				scheduled: effectiveScheduled(props, ctx),
-				group: groupOf(props, ctx),
-			});
-		}
-		return entries;
-	}
-
 	/**
 	 * タスクの表示名。読んだものがなければ、読み始めて、読み終えたら描き直す。
 	 * 読み終えるまでは前に読んだ表示名（なければ null で、ファイル名になる）を返す
@@ -264,12 +227,9 @@ export class TaskView extends ItemView {
 
 		if (!this.loadingTitles.has(file.path)) {
 			this.loadingTitles.add(file.path);
-			this.app.vault
-				.cachedRead(file)
-				.then((data) => {
-					// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
-					const body = data.slice(getFrontMatterInfo(data).contentStart);
-					const title = firstOpenItem(body, heading);
+			this.plugin
+				.readTitle(file, heading)
+				.then((title) => {
 					const changed = (cached?.title ?? null) !== title;
 					this.titles.set(file.path, { mtime: file.stat.mtime, heading, title });
 					if (changed) this.render();
@@ -292,7 +252,7 @@ export class TaskView extends ItemView {
 		const root = this.listEl;
 		if (!root) return; // まだ開かれていない
 		const ctx = this.plugin.taskContext();
-		const entries = this.collect(ctx);
+		const entries = this.plugin.collectTasks(ctx, (file) => this.titleOf(file) ?? file.basename);
 		this.shown = new Set(entries.map((e) => e.file.path));
 		this.shownDay = ctx.today.format('YYYY-MM-DD');
 		this.shownAvailable = getDailyNotes(this.app) !== null;
@@ -307,11 +267,7 @@ export class TaskView extends ItemView {
 		const groups = [...new Set(entries.map((e) => e.group))].sort((a, b) => a - b);
 		// 就寝の行を置けるグループか（実行中とスキップ済みには置かない）
 		const holdsSleep = (g: number) => g !== GROUP_RUNNING && g !== GROUP_SKIPPED;
-		this.shownOrder = groups.filter((g) => g !== GROUP_SKIPPED).flatMap((group) =>
-			groupByTag(entries.filter((e) => e.group === group).sort(compareTasks)).flatMap((item) =>
-				'tag' in item ? item.entries : [item],
-			),
-		);
+		this.shownOrder = orderTasks(entries).filter((e) => e.group !== GROUP_SKIPPED);
 		// 実行中とスキップ済みのほかにタスクがなければ、今の時間帯の見出し（件数 0）の中に
 		// 「タスクなし」と就寝の行を出す
 		if (!groups.some(holdsSleep) && this.shownSlot !== null) groups.push(this.shownSlot);
@@ -551,7 +507,7 @@ export class TaskView extends ItemView {
 		item.addEventListener('contextmenu', (evt) => {
 			evt.preventDefault();
 			const file = entry.file;
-			const items: { title: string; icon: string; run: () => Promise<void> }[] = isRunning(
+			const items: { title: string; icon: string; run: () => Promise<unknown> }[] = isRunning(
 				entry.props,
 			)
 				? [{ title: 'Forgot to end', icon: 'check', run: () => this.plugin.forgotEndTask(file) }]
@@ -601,7 +557,7 @@ export class TaskView extends ItemView {
 		const labels = this.plugin.taskLabels();
 		const settings = this.plugin.settings;
 		const file = entry.file;
-		const actions: { label: string; icon: string; run: () => Promise<void> }[] = isRunning(
+		const actions: { label: string; icon: string; run: () => Promise<unknown> }[] = isRunning(
 			entry.props,
 		)
 			? [

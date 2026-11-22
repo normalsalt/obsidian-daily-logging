@@ -30,6 +30,7 @@ import {
 import type { DailyNotesInstance, LoggedLine } from './daily-notes';
 import {
 	dayBoundary,
+	firstOpenItem,
 	insertUnderHeading,
 	isBlank,
 	isEmptyItem,
@@ -43,15 +44,21 @@ import {
 	PROP_DATE_FORMAT,
 	PROP_DAY_FORMAT,
 	UNKNOWN_TIME,
+	effectiveScheduled,
 	formatDuration,
+	groupOf,
 	isHolidayToday,
 	isRunning,
+	isSkippedToday,
+	isVisible,
 	readTask,
 } from './task';
-import type { Moment, TaskContext, TaskPropNames } from './task';
+import type { Moment, TaskContext, TaskEntry, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
 import { InterruptionModal, LinkModal, SkipWarningModal, findLinks } from './link-modal';
+import type { FoundLink } from './link-modal';
+import { registerCli } from './cli';
 import { isOnSide, routeOpenFile } from './tiles';
 import type { Side } from './tiles';
 
@@ -92,6 +99,7 @@ export default class DailyLoggingPlugin extends Plugin {
 		this.addSettingTab(new DailyLoggingSettingTab(this.app, this));
 		this.registerView(VIEW_TYPE_TASKS, (leaf) => new TaskView(leaf, this));
 		this.register(routeOpenFile(this.app, (file) => this.sideOf(file)));
+		registerCli(this);
 		this.addRibbonIcon('list-checks', 'Open task list', () => {
 			void this.activateTaskView();
 		});
@@ -173,7 +181,7 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	/** 予定の取得に使う URL とトークン。どちらかが空なら null */
-	private calendarConfig(): { url: string; token: string } | null {
+	calendarConfig(): { url: string; token: string } | null {
 		const url = this.settings.calendarUrl.trim();
 		const key = this.settings.calendarToken.trim();
 		const token = key ? this.app.secretStorage.getSecret(key) : null;
@@ -182,22 +190,32 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/** 予定を取得し、保管庫直下のファイルを作成・更新して、件数を知らせる */
 	async fetchCalendar(): Promise<void> {
+		try {
+			const result = await this.syncCalendar();
+			if (result) new Notice(`Calendar: ${result.created} created, ${result.updated} updated.`);
+		} catch (err) {
+			reportError(err);
+		}
+	}
+
+	/**
+	 * 予定を取得し、保管庫直下のファイルを作成・更新して、件数を返す。
+	 * 設定がないか、取得している最中なら null。取得に失敗したら例外を投げる
+	 */
+	async syncCalendar(): Promise<{ created: number; updated: number } | null> {
 		const config = this.calendarConfig();
-		if (!config || this.calendarBusy) return;
+		if (!config || this.calendarBusy) return null;
 		this.calendarBusy = true;
 		try {
 			// 範囲の終わりは、翌日の1日の区切りの時刻
 			const until = moment().startOf('day').add(this.taskContext().boundary, 'minutes').format('HH:mm');
 			const events = await fetchCalendarEvents(config.url, config.token, until);
-			const { created, updated } = await syncCalendarEvents(
+			return await syncCalendarEvents(
 				this.app,
 				events,
 				this.taskPropNames(),
 				this.settings.titleHeading.trim(),
 			);
-			new Notice(`Calendar: ${created} created, ${updated} updated.`);
-		} catch (err) {
-			reportError(err);
 		} finally {
 			this.calendarBusy = false;
 		}
@@ -361,9 +379,16 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.beginTask(file, true);
 	}
 
-	/** 開始と開始忘れの共通処理 */
-	private async beginTask(file: TFile, unknownStart: boolean): Promise<void> {
-		if (!this.ensureDailyNotes()) return;
+	/**
+	 * 開始と開始忘れの共通処理。記録した行と、場所のプロパティのリンクを返す。
+	 * ui が false なら、記録した行もリンクのモーダルも出さない（CLI から実行するとき）
+	 */
+	async beginTask(
+		file: TFile,
+		unknownStart: boolean,
+		ui = true,
+	): Promise<{ logged: LoggedLine | null; links: FoundLink[] }> {
+		if (!this.ensureDailyNotes()) return { logged: null, links: [] };
 
 		const now = moment();
 		const names = this.taskPropNames();
@@ -381,13 +406,15 @@ export default class DailyLoggingPlugin extends Plugin {
 		});
 		const steps = await this.readSteps(file);
 		const time = unknownStart ? UNKNOWN_TIME : now.format('HH:mm');
-		const logged = this.logEntry(file, now, ` ${this.taskLabels().start}`, steps, time);
+		const logged = await this.logEntry(file, now, ` ${this.taskLabels().start}`, steps, time);
 		await updated;
-		await this.showLoggedLine(await logged, steps.length > 0 || this.settings.childBullet);
-
 		// 場所のプロパティに URL か内部リンクがあれば、すぐ開けるように出す
 		const links = this.settings.showLinksOnStart ? findLinks(before.location) : [];
+		if (!ui) return { logged, links };
+
+		await this.showLoggedLine(logged, steps.length > 0 || this.settings.childBullet);
 		if (links.length > 0) new LinkModal(this.app, file.basename, links, file).open();
+		return { logged, links };
 	}
 
 	/** タスクのノートの、ステップの見出しの下にある未チェックのチェックボックス（1段インデント済み） */
@@ -422,14 +449,15 @@ export default class DailyLoggingPlugin extends Plugin {
 	/**
 	 * 終了・中断・終了忘れ・実行済みの共通処理。終了日時を書き込み、所要時間付きで記録する。
 	 * 終了忘れと実行済みでも、実行中でなくすために終了日時は今にする（記録は ??:??）。
-	 * show が false なら、記録した行を表示しない（就寝でまとめて処理するとき）
+	 * show が false なら、記録した行を表示しない（就寝でまとめて処理するとき、CLI から実行するとき）。
+	 * 記録した行を返す
 	 */
-	private async finishTask(
+	async finishTask(
 		file: TFile,
 		mode: 'end' | 'interrupt' | 'forgotEnd' | 'done',
 		show = true,
-	): Promise<void> {
-		if (!this.ensureDailyNotes()) return;
+	): Promise<LoggedLine | null> {
+		if (!this.ensureDailyNotes()) return null;
 
 		const now = moment();
 		const names = this.taskPropNames();
@@ -469,20 +497,24 @@ export default class DailyLoggingPlugin extends Plugin {
 		if (forgot || (before.start && !before.startKnown)) duration = ` (${UNKNOWN_TIME})`;
 		else if (before.start) duration = ` (${formatDuration(before.start, now)})`;
 		const time = forgot ? UNKNOWN_TIME : now.format('HH:mm');
-		const logged = this.logEntry(file, now, ` ${label}${duration}`, [], time);
+		const logged = await this.logEntry(file, now, ` ${label}${duration}`, [], time);
 		await updated;
-		if (show) await this.showLoggedLine(await logged, this.settings.childBullet);
-		else await logged;
+		if (show) await this.showLoggedLine(logged, this.settings.childBullet);
+		return logged;
 	}
 
 	/**
 	 * タスクをスキップする。スキップ日時を書き込み、予定日時の値を空にし、設定がオンならデイリーノートに記録する。
 	 * 周期がなければ、もう一覧に出ないことを知らせる。
-	 * show が false なら、記録した行も知らせるモーダルも出さない（就寝でまとめて処理するとき）
+	 * show が false なら、記録した行も知らせるモーダルも出さない（就寝でまとめて処理するとき、CLI から実行するとき）。
+	 * 記録した行（記録しない設定なら null）と、周期があるかを返す
 	 */
-	async skipTask(file: TFile, show = true): Promise<void> {
+	async skipTask(
+		file: TFile,
+		show = true,
+	): Promise<{ logged: LoggedLine | null; repeats: boolean }> {
 		const log = this.settings.logSkip;
-		if (log && !this.ensureDailyNotes()) return;
+		if (log && !this.ensureDailyNotes()) return { logged: null, repeats: false };
 
 		const now = moment();
 		const names = this.taskPropNames();
@@ -496,15 +528,13 @@ export default class DailyLoggingPlugin extends Plugin {
 		});
 
 		// 理由を書けるよう、記録の下のバレットにカーソルを置く
-		const logged = log ? this.logEntry(file, now, ` ${this.taskLabels().skip}`) : null;
+		const logged = log ? await this.logEntry(file, now, ` ${this.taskLabels().skip}`) : null;
 		await updated;
-		if (!show) {
-			await logged;
-			return;
-		}
-		await this.showLoggedLine(await logged, this.settings.childBullet);
+		if (!show) return { logged, repeats };
 
+		await this.showLoggedLine(logged, this.settings.childBullet);
 		if (!repeats) new SkipWarningModal(this.app, file).open();
+		return { logged, repeats };
 	}
 
 	/** 割り込みタスクの名前を入力するモーダルを出し、確定したら記録する。done は記録の後に呼ぶ */
@@ -518,10 +548,11 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/**
 	 * 割り込みタスクを記録する。実行中のタスクを開始の古い順にすべて中断してから、
-	 * 今の時間帯に「- HH:mm 名前 開始の言葉」（リンクなし）を記録する。途中の中断ではデイリーノートを表示しない
+	 * 今の時間帯に「- HH:mm 名前 開始の言葉」（リンクなし）を記録する。途中の中断ではデイリーノートを表示しない。
+	 * ui が false なら、最後に記録した行も表示しない（CLI から実行するとき）。記録した行を返す
 	 */
-	async logInterruption(name: string): Promise<void> {
-		if (!this.ensureDailyNotes()) return;
+	async logInterruption(name: string, ui = true): Promise<LoggedLine | null> {
+		if (!this.ensureDailyNotes()) return null;
 
 		for (const file of this.runningTasks()) await this.finishTask(file, 'interrupt', false);
 
@@ -529,7 +560,8 @@ export default class DailyLoggingPlugin extends Plugin {
 		const text = `- ${now.format('HH:mm')} ${name} ${this.taskLabels().start}`;
 		const below = this.settings.childBullet ? ['\t- '] : [];
 		const logged = await this.logLine(now, () => true, () => text, below);
-		await this.showLoggedLine(logged, this.settings.childBullet);
+		if (ui) await this.showLoggedLine(logged, this.settings.childBullet);
+		return logged;
 	}
 
 	/** 実行中のタスクを、開始日時の古い順に（デイリーノートと休日のノートは除く） */
@@ -548,10 +580,11 @@ export default class DailyLoggingPlugin extends Plugin {
 
 	/**
 	 * 就寝する。files を順に（実行中なら終了してから）スキップし、最後に就寝を記録する。
-	 * 就寝の行はリンクなしで、下にバレットを入れない
+	 * 就寝の行はリンクなしで、下にバレットを入れない。
+	 * ui が false なら、就寝の行も表示しない（CLI から実行するとき）。就寝の行を返す
 	 */
-	async goToBed(files: TFile[]): Promise<void> {
-		if (!this.ensureDailyNotes()) return;
+	async goToBed(files: TFile[], ui = true): Promise<LoggedLine | null> {
+		if (!this.ensureDailyNotes()) return null;
 
 		const names = this.taskPropNames();
 		// 記録の順を一覧の順にそろえるため、1件ずつ待つ
@@ -566,7 +599,8 @@ export default class DailyLoggingPlugin extends Plugin {
 		const labels = this.taskLabels();
 		const text = `- ${now.format('HH:mm')} ${labels.sleep} ${labels.start}`;
 		const logged = await this.logLine(now, () => true, () => text, []);
-		await this.showLoggedLine(logged, false);
+		if (ui) await this.showLoggedLine(logged, false);
+		return logged;
 	}
 
 	/**
@@ -689,19 +723,11 @@ export default class DailyLoggingPlugin extends Plugin {
 	private taskCommand(
 		checking: boolean,
 		needRunning: boolean,
-		run: (file: TFile) => Promise<void>,
+		run: (file: TFile) => Promise<unknown>,
 	): boolean {
 		const file = this.app.workspace.getActiveFile();
-		if (!file || file.extension !== 'md') return false;
-
-		// 無効でもコマンドは出し、実行時に startTask などが知らせる
-		const dn = getDailyNotes(this.app);
-		if (dn && isDailyNote(file, dn)) return false;
-
-		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-		const props = readTask(fm, this.taskPropNames());
-		const running = props !== null && isRunning(props);
-		if (running !== needRunning) return false;
+		const state = file ? this.taskState(file) : null;
+		if (!file || state === null || (state === 'running') !== needRunning) return false;
 
 		if (!checking) {
 			void run(file).catch(reportError);
@@ -730,6 +756,53 @@ export default class DailyLoggingPlugin extends Plugin {
 			});
 			const timer = window.setTimeout(finish, timeout);
 		});
+	}
+
+	/**
+	 * タスクとして操作できるか。Markdown でデイリーノートでなければ、実行中なら 'running'、そうでなければ 'idle'。
+	 * それ以外は null。デイリーノートが無効でもタスクとして扱い、実行時に startTask などが知らせる
+	 */
+	taskState(file: TFile): 'running' | 'idle' | null {
+		if (file.extension !== 'md') return null;
+		const dn = getDailyNotes(this.app);
+		if (dn && isDailyNote(file, dn)) return null;
+		const props = readTask(this.app.metadataCache.getFileCache(file)?.frontmatter, this.taskPropNames());
+		return props !== null && isRunning(props) ? 'running' : 'idle';
+	}
+
+	/** 今日表示するタスクと、今日スキップしたタスクを集める。nameOf は表示名 */
+	collectTasks(ctx: TaskContext, nameOf: (file: TFile) => string): TaskEntry[] {
+		const names = this.taskPropNames();
+		const dn = getDailyNotes(this.app);
+		const holidayNote = this.holidayNote();
+		const entries: TaskEntry[] = [];
+
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			if (dn && isDailyNote(file, dn)) continue;
+			if (file === holidayNote) continue; // 休日の判定に使うノートはタスクではない
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			const props = readTask(fm, names);
+			if (!props || !(isVisible(props, ctx) || isSkippedToday(props, ctx))) continue;
+			entries.push({
+				file,
+				name: nameOf(file),
+				props,
+				scheduled: effectiveScheduled(props, ctx),
+				group: groupOf(props, ctx),
+			});
+		}
+		return entries;
+	}
+
+	/**
+	 * タスクのノートの表示名。見出し（既定は設定の Title heading）の下の、一番上の未チェックのチェックボックスの文字列。
+	 * なければ null
+	 */
+	async readTitle(file: TFile, heading = this.settings.titleHeading.trim()): Promise<string | null> {
+		if (heading === '') return null;
+		const data = await this.app.vault.cachedRead(file);
+		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
+		return firstOpenItem(data.slice(getFrontMatterInfo(data).contentStart), heading);
 	}
 
 	/** 右サイドバーにタスク一覧を開く（すでにあれば表示する） */

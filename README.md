@@ -119,6 +119,33 @@ Fetch events with the **Fetch calendar events** command, or with the refresh but
 
 For each event, a note named after the event is used at the top level of the vault. If it doesn't exist, it is created. Its `scheduled` and `location` properties are overwritten with the event's start and location each time. The event's description is added to the end of the section under the **Title heading** (default: `Tasks`), unless the note already contains it. The description goes on the line right after the last line of the section, without a blank line, and above any blank lines at the end of the section. If the note doesn't have the heading, it is added to the end of the note as a level 2 heading, such as `## Tasks`, with the description under it. Every two spaces at the start of a line become a tab. For an all-day event that started on an earlier day, `scheduled` is set to today.
 
+## Command line
+
+With the [Obsidian CLI](https://help.obsidian.md/cli), you can list and log tasks from a terminal, or let an AI agent such as Claude Code do it. Obsidian must be running. Run `obsidian help` to see the commands and their options.
+
+| Command                        | What it does                                                                 |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `daily-logging:tasks`          | Lists today's tasks in the same order as the task list. Add `format=json` for JSON |
+| `daily-logging:start`          | Starts a task                                                                |
+| `daily-logging:end`            | Ends a running task                                                          |
+| `daily-logging:interrupt`      | Interrupts a running task                                                    |
+| `daily-logging:skip`           | Skips a task for today                                                       |
+| `daily-logging:forgot-start`   | Same as **Forgot to start**                                                  |
+| `daily-logging:forgot-end`     | Same as **Forgot to end**                                                    |
+| `daily-logging:done`           | Same as **Already done**                                                     |
+| `daily-logging:interruption`   | Logs an interruption, such as `name="Phone call"`                            |
+| `daily-logging:bedtime`        | Shows how many tasks would be skipped. Add `confirm` to go to bed            |
+| `daily-logging:fetch-calendar` | Fetches calendar events                                                      |
+
+Choose the task with `file=<name>` (found like a link) or `path=<path>`. Without them, the file that is open is used. For example:
+
+```sh
+obsidian daily-logging:tasks
+obsidian daily-logging:start file="Weekly report"
+```
+
+The commands don't change what Obsidian shows. The daily note isn't opened and no popups are shown. Instead, the logged line is printed, with the links in `location` when a task starts, and a note when a task without `repeat` days is skipped.
+
 ## Notes
 
 - Daily Logging reads the settings of the Daily notes core plugin through an internal, undocumented API. A future Obsidian update may break it. If that happens, or if the Daily notes core plugin is disabled, Daily Logging shows a notice and a warning in the task list, and nothing is logged until it can use the plugin again.
