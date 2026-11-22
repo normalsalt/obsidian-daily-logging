@@ -41,6 +41,7 @@ import {
 	resolvePlacement,
 } from './time-slots';
 import {
+	GROUP_SKIPPED,
 	PROP_DATE_FORMAT,
 	PROP_DAY_FORMAT,
 	UNKNOWN_TIME,
@@ -51,13 +52,20 @@ import {
 	isRunning,
 	isSkippedToday,
 	isVisible,
+	orderTasks,
 	readTask,
 	scheduledDay,
 } from './task';
 import type { Moment, TaskContext, TaskDate, TaskEntry, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
-import { InterruptionModal, LinkModal, SkipWarningModal, findLinks } from './link-modal';
+import {
+	InterruptionModal,
+	LinkModal,
+	SkipWarningModal,
+	SleepConfirmModal,
+	findLinks,
+} from './link-modal';
 import type { FoundLink } from './link-modal';
 import { registerCli } from './cli';
 import { isOnSide, routeOpenFile } from './tiles';
@@ -151,6 +159,13 @@ export default class DailyLoggingPlugin extends Plugin {
 			id: 'log-interruption',
 			name: 'Log an interruption',
 			callback: () => this.openInterruptionModal(),
+		});
+		this.addCommand({
+			id: 'go-to-bed',
+			name: 'Go to bed',
+			callback: () => {
+				void this.confirmBedtime().catch(reportError);
+			},
 		});
 		this.addCommand({
 			id: 'fetch-calendar-events',
@@ -811,6 +826,31 @@ export default class DailyLoggingPlugin extends Plugin {
 			});
 		}
 		return entries;
+	}
+
+	/** 今日のタスクを、表示名を読んでから、タスク一覧と同じ並びにする（並び順は表示名も使うため） */
+	async orderedTasks(ctx: TaskContext): Promise<TaskEntry[]> {
+		const files = this.collectTasks(ctx, (f) => f.basename).map((e) => e.file);
+		const titles = new Map<string, string>();
+		for (const file of files) {
+			const title = await this.readTitle(file);
+			if (title) titles.set(file.path, title);
+		}
+		return orderTasks(this.collectTasks(ctx, (f) => titles.get(f.path) ?? f.basename));
+	}
+
+	/** 就寝でスキップするタスク。タスク一覧の就寝ボタンと同じく、スキップ済みを除いた一覧の順 */
+	async bedtimeTasks(ctx: TaskContext): Promise<TaskEntry[]> {
+		return (await this.orderedTasks(ctx)).filter((e) => e.group !== GROUP_SKIPPED);
+	}
+
+	/** 確認のモーダルを出してから就寝する（コマンド用） */
+	async confirmBedtime(): Promise<void> {
+		const entries = await this.bedtimeTasks(this.taskContext());
+		const running = entries.filter((e) => isRunning(e.props)).length;
+		new SleepConfirmModal(this.app, entries.length, running, () => {
+			void this.goToBed(entries.map((e) => e.file)).catch(reportError);
+		}).open();
 	}
 
 	/**

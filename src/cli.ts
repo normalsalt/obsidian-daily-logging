@@ -11,7 +11,6 @@ import {
 	currentSlot,
 	formatDuration,
 	isRunning,
-	orderTasks,
 	scheduledDay,
 	slotEnd,
 } from './task';
@@ -146,8 +145,7 @@ export function registerCli(plugin: DailyLoggingPlugin): void {
 		{ confirm: { description: 'Do it. Without this flag, only shows what would happen' } },
 		async (params) => {
 			const ctx = plugin.taskContext();
-			// 一覧の就寝ボタンと同じく、スキップ済みを除いた一覧の順
-			const entries = (await todayTasks(plugin, ctx)).filter((e) => e.group !== GROUP_SKIPPED);
+			const entries = await plugin.bedtimeTasks(ctx);
 			if (params.confirm !== 'true') {
 				const running = entries.filter((e) => isRunning(e.props)).length;
 				return `${entries.length} tasks will be skipped (${running} running tasks are ended first). Add confirm to go to bed.`;
@@ -218,22 +216,11 @@ function linkLines(links: { text: string }[]): string[] {
 	return links.length > 0 ? ['Links:', ...links.map((l) => `- ${l.text}`)] : [];
 }
 
-/** 今日のタスクを、表示名を読んでから、一覧と同じ並びにする（並び順は表示名も使うため） */
-async function todayTasks(plugin: DailyLoggingPlugin, ctx: TaskContext): Promise<TaskEntry[]> {
-	const files = plugin.collectTasks(ctx, (f) => f.basename).map((e) => e.file);
-	const titles = new Map<string, string>();
-	for (const file of files) {
-		const title = await plugin.readTitle(file);
-		if (title) titles.set(file.path, title);
-	}
-	return orderTasks(plugin.collectTasks(ctx, (f) => titles.get(f.path) ?? f.basename));
-}
-
 /** 今日のタスク一覧 */
 async function listTasks(plugin: DailyLoggingPlugin, json: boolean): Promise<string> {
 	const ctx = plugin.taskContext();
 	const now = moment();
-	const entries = await todayTasks(plugin, ctx);
+	const entries = await plugin.orderedTasks(ctx);
 	const slot = currentSlot(ctx, now);
 	const groupTitle = (group: number) => {
 		const labels = plugin.taskLabels();
