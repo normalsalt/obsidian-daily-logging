@@ -15,7 +15,8 @@ import {
 	scheduledDay,
 	slotEnd,
 } from './task';
-import type { Moment, TaskContext, TaskEntry } from './task';
+import type { Moment, TaskContext, TaskDate, TaskEntry } from './task';
+import { parseTime } from './time-slots';
 
 /** 失敗を伝える。CLI の出力は1行の「Error: …」にする */
 class CliError extends Error {}
@@ -104,6 +105,30 @@ export function registerCli(plugin: DailyLoggingPlugin): void {
 	});
 
 	add(
+		'schedule',
+		'Set when a task is scheduled. Nothing is logged',
+		{
+			...FILE_FLAGS,
+			at: {
+				value: '<YYYY-MM-DD HH:mm|YYYY-MM-DD|HH:mm>',
+				description: 'Date and time. HH:mm alone means that time today',
+			},
+			clear: { description: 'Clear the scheduled date and time instead' },
+		},
+		async (params) => {
+			const file = targetFile(plugin, params);
+			if (plugin.taskState(file) === null) throw new CliError(`${file.path} isn't a task note.`);
+			if (params.clear === 'true') {
+				await plugin.scheduleTask(file, null);
+				return `Cleared the schedule of ${file.basename}.`;
+			}
+			const at = parseAt(params.at, plugin.taskContext());
+			await plugin.scheduleTask(file, at);
+			return `Scheduled ${file.basename} for ${at.value.format(at.hasTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD')}.`;
+		},
+	);
+
+	add(
 		'interruption',
 		'Interrupt every running task and log an interruption',
 		{ name: { value: '<text>', description: 'What interrupted you', required: true } },
@@ -138,6 +163,27 @@ export function registerCli(plugin: DailyLoggingPlugin): void {
 		if (!result) throw new CliError('Events are already being fetched.');
 		return `Calendar: ${result.created} created, ${result.updated} updated.`;
 	});
+}
+
+/**
+ * schedule の at を予定日時にする。HH:mm だけなら、予定時刻と同じく論理上の今日のその時刻
+ * （1日の区切りより前なら翌日の暦日）
+ */
+function parseAt(value: string | undefined, ctx: TaskContext): TaskDate {
+	const v = value === undefined || value === 'true' ? '' : value.trim();
+	if (v === '') throw new CliError('Enter a date and time with at=<YYYY-MM-DD HH:mm>, or use clear.');
+
+	const minutes = parseTime(v);
+	if (minutes !== null) {
+		const at = ctx.today.clone().add(minutes, 'minutes');
+		if (minutes < ctx.boundary) at.add(1, 'day');
+		return { value: at, hasTime: true };
+	}
+	const withTime = moment(v, ['YYYY-MM-DD HH:mm', 'YYYY-MM-DDTHH:mm', 'YYYY-MM-DD H:mm'], true);
+	if (withTime.isValid()) return { value: withTime, hasTime: true };
+	const date = moment(v, 'YYYY-MM-DD', true);
+	if (date.isValid()) return { value: date, hasTime: false };
+	throw new CliError(`Invalid date and time: ${v}. Use YYYY-MM-DD HH:mm, YYYY-MM-DD, or HH:mm.`);
 }
 
 /** デイリーノートが使えなければ、通知ではなくエラーで返す */

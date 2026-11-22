@@ -133,6 +133,7 @@ With the [Obsidian CLI](https://help.obsidian.md/cli), you can list and log task
 | `daily-logging:forgot-start`   | Same as **Forgot to start**                                                  |
 | `daily-logging:forgot-end`     | Same as **Forgot to end**                                                    |
 | `daily-logging:done`           | Same as **Already done**                                                     |
+| `daily-logging:schedule`       | Sets `scheduled` with `at=`, such as `at="2026-12-01 14:00"`, `at=2026-12-01`, or `at=14:00` for today. Add `clear` instead to clear it. Nothing is logged. A task skipped today shows up again when you schedule it for today |
 | `daily-logging:interruption`   | Logs an interruption, such as `name="Phone call"`                            |
 | `daily-logging:bedtime`        | Shows how many tasks would be skipped. Add `confirm` to go to bed            |
 | `daily-logging:fetch-calendar` | Fetches calendar events                                                      |

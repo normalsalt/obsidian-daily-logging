@@ -52,8 +52,9 @@ import {
 	isSkippedToday,
 	isVisible,
 	readTask,
+	scheduledDay,
 } from './task';
-import type { Moment, TaskContext, TaskEntry, TaskPropNames } from './task';
+import type { Moment, TaskContext, TaskDate, TaskEntry, TaskPropNames } from './task';
 import { TaskView, VIEW_TYPE_TASKS } from './task-view';
 import { fetchCalendarEvents, syncCalendarEvents } from './calendar';
 import { InterruptionModal, LinkModal, SkipWarningModal, findLinks } from './link-modal';
@@ -535,6 +536,24 @@ export default class DailyLoggingPlugin extends Plugin {
 		await this.showLoggedLine(logged, this.settings.childBullet);
 		if (!repeats) new SkipWarningModal(this.app, file).open();
 		return { logged, repeats };
+	}
+
+	/**
+	 * 予定日時を入れ直す（null なら値だけ空にする）。記録はしない。
+	 * 論理上の今日の予定なら、スキップを取り消す（今日スキップしたままだと、一覧に出ないため）
+	 */
+	async scheduleTask(file: TFile, at: TaskDate | null): Promise<void> {
+		const names = this.taskPropNames();
+		const ctx = this.taskContext();
+		const updated = this.waitForMetadata(file);
+		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			fm[names.scheduled] = at
+				? at.value.format(at.hasTime ? PROP_DATE_FORMAT : PROP_DAY_FORMAT)
+				: null;
+			const today = at !== null && scheduledDay(at, ctx).isSame(ctx.today, 'day');
+			if (today && names.skip in fm) fm[names.skip] = null; // 値だけ空にする
+		});
+		await updated;
 	}
 
 	/** 割り込みタスクの名前を入力するモーダルを出し、確定したら記録する。done は記録の後に呼ぶ */
