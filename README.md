@@ -93,7 +93,18 @@ If you forgot to press a button, right-click the task in the list (long-press on
 | Forgot to end   | Forgot to end task        | Running     | `- ??:?? [[Task]] ended (??:??)`       |
 | Already done    | Mark task as already done | Not running | `- ??:?? [[Task]] done (??:??)`. Clears `scheduled`, like End. |
 
-When you start a task, the unchecked checkboxes under the **Steps heading** of the task's note (default: `Steps`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines. If there are no unchecked steps, the first unchecked checkbox under the **Title heading**, the one shown as the task's name in the list, is copied the same way instead.
+When you start a task, the unchecked checkboxes under the **Steps heading** of the task's note (default: `Steps`) are copied under the entry, with the lines nested under them, and the cursor goes to the first one. They take the place of the empty bullet. Checked and other items are skipped, with their nested lines. To have different steps on different days, write a bullet with only a weekday from your **repeat** values, such as `- Tuesday`, and put the steps under it. On that day, its steps are copied along with the steps that aren't under a weekday, in order from the top. Steps under other weekdays are skipped. Weekday bullets work at any level, even under another item or a step.
+
+```markdown
+## Steps
+- [ ] Drink water
+- Tuesday
+	- [ ] Take out the trash
+- Sunday
+	- [ ] Water the plants
+```
+
+If there are no unchecked steps for the day, the first unchecked checkbox under the **Title heading**, the one shown as the task's name in the list, is copied the same way instead.
 
 If the `location` property of a task has a URL or an internal link, it is shown in a popup when you start the task, so you can open it right away. The popup also has a button to open the task's note. Press Enter to open the first link, or Esc to close the popup. You can turn this off with **Show links when a task starts** in the settings.
 

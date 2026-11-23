@@ -435,7 +435,8 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	/**
-	 * 記録の下にコピーする行（1段インデント済み）。ステップの見出しの下にある未チェックのチェックボックス。
+	 * 記録の下にコピーする行（1段インデント済み）。ステップの見出しの下にある未チェックのチェックボックス
+	 * （どの深さでも、今日の曜日だけを書いたバレットの下にあるものも）。
 	 * なければ、表示名の見出しの一番上の未チェックのチェックボックス（タスク一覧の表示名と同じ項目）
 	 */
 	private async readSteps(file: TFile): Promise<string[]> {
@@ -445,7 +446,10 @@ export default class DailyLoggingPlugin extends Plugin {
 		const data = await this.app.vault.read(file);
 		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
 		const body = data.slice(getFrontMatterInfo(data).contentStart);
-		const lines = steps !== '' ? openSteps(body, steps) : [];
+		// 曜日だけを書いたバレットは、今日（論理上）の曜日なら子の行を使い、違う曜日なら外す
+		const ctx = this.taskContext();
+		const weekday = ctx.weekdays[ctx.today.isoWeekday() - 1] ?? '';
+		const lines = steps !== '' ? openSteps(body, steps, ctx.weekdays, weekday) : [];
 		if (lines.length > 0 || title === '') return lines;
 		return openItemBlock(body, title);
 	}

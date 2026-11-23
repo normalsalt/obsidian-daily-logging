@@ -139,26 +139,98 @@ function sectionLines(data: string, heading: string): string[] {
 
 const OPEN_CHECKBOX = /^[ \t]*[-*+] \[ \]/;
 
+/** 曜日の項目の判定に使う曜日。all は7つの曜日、today は論理上の今日の曜日（どちらも小文字） */
+interface StepDays {
+	all: string[];
+	today: string;
+}
+
 /**
  * 見出しの節から、未チェックのチェックボックスを子の行ごと取り出し、1段インデントして返す。
- * チェック済みや普通の項目、本文は、子ごと飛ばす
+ * チェック済みや普通の項目、本文は、子ごと飛ばす。
+ * 曜日だけを書いたバレットは、どの深さでも、今日の曜日ならその行の代わりに子の行を使い、違う曜日なら子ごと外す
  */
-export function openSteps(data: string, heading: string): string[] {
-	const section = sectionLines(data, heading);
+export function openSteps(data: string, heading: string, weekdays: string[] = [], today = ''): string[] {
+	const days = { all: weekdays.map((d) => d.toLowerCase()), today: today.toLowerCase() };
+	return collectSteps(
+		sectionLines(data, heading).filter((line) => !isBlank(line)),
+		days,
+	);
+}
+
+const indentOf = (line: string) => /^[ \t]*/.exec(line)?.[0].length ?? 0;
+
+/** 曜日だけを書いたバレット（チェックボックスでないもの）なら、今日の曜日か。曜日の項目でなければ null */
+function weekdayItem(line: string, days: StepDays): 'today' | 'other' | null {
+	if (OPEN_CHECKBOX.test(line)) return null;
+	const m = /^[ \t]*[-*+] (.*)$/.exec(line);
+	const text = m ? plainText(m[1] ?? '').toLowerCase() : '';
+	if (text === '' || !days.all.includes(text)) return null;
+	return text === days.today ? 'today' : 'other';
+}
+
+/** 項目ごとに、その行と子の行（インデントが深い後続の行）に分ける */
+function splitItems(lines: string[]): { line: string; base: number; children: string[] }[] {
+	const items = [];
+	let i = 0;
+	while (i < lines.length) {
+		const line = lines[i] ?? '';
+		const base = indentOf(line);
+		let end = i + 1;
+		while (end < lines.length && indentOf(lines[end] ?? '') > base) end++;
+		items.push({ line, base, children: lines.slice(i + 1, end) });
+		i = end;
+	}
+	return items;
+}
+
+/**
+ * openSteps の本体（空行は除いてある）。今日の曜日の項目は、その子の行を同じように読む（複数あれば上から順に）。
+ * 普通の項目は、子の中の今日の曜日の項目だけを読む
+ */
+function collectSteps(lines: string[], days: StepDays): string[] {
 	const result: string[] = [];
-	let base = -1; // 直前の項目のインデントの長さ
-	let copying = false;
-	for (const line of section) {
-		if (isBlank(line)) continue;
-		const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
-		// 直前の項目より深い行はその子
-		if (base >= 0 && indent > base) {
-			if (copying) result.push(`\t${line.slice(base)}`);
+	for (const { line, base, children } of splitItems(lines)) {
+		const day = weekdayItem(line, days);
+		if (day === 'today') {
+			result.push(...collectSteps(children, days));
+		} else if (day === null && OPEN_CHECKBOX.test(line)) {
+			result.push(...[line, ...unwrapWeekdays(children, days)].map((l) => `\t${l.slice(base)}`));
+		} else if (day === null && !/^[ \t]*[-*+] \[.\]/.test(line)) {
+			// 普通の項目（チェック済みは子ごと飛ばす）
+			result.push(...collectSteps(todayItems(children, days), days));
+		}
+	}
+	return result;
+}
+
+/** 普通の項目の子から、今日の曜日の項目（どの深さでも）だけを、子の行ごと取り出す */
+function todayItems(lines: string[], days: StepDays): string[] {
+	const result: string[] = [];
+	for (const { line, children } of splitItems(lines)) {
+		const day = weekdayItem(line, days);
+		if (day === 'today') result.push(line, ...children);
+		else if (day === null && !/^[ \t]*[-*+] \[.\]/.test(line)) result.push(...todayItems(children, days));
+	}
+	return result;
+}
+
+/**
+ * コピーするチェックボックスの子の行で、曜日の項目を処理する。今日の曜日なら、その行の代わりに子の行を
+ * 曜日の行の深さに上げて使い、違う曜日なら子ごと外す。ほかの行はそのまま（チェック済みも含めて）
+ */
+function unwrapWeekdays(lines: string[], days: StepDays): string[] {
+	const result: string[] = [];
+	for (const { line, base, children } of splitItems(lines)) {
+		const day = weekdayItem(line, days);
+		if (day === 'other') continue;
+		if (day === null) {
+			result.push(line, ...unwrapWeekdays(children, days));
 			continue;
 		}
-		base = indent;
-		copying = OPEN_CHECKBOX.test(line);
-		if (copying) result.push(`\t${line.slice(base)}`);
+		const inner = unwrapWeekdays(children, days);
+		const depth = indentOf(children[0] ?? '');
+		result.push(...inner.map((l) => line.slice(0, base) + l.slice(depth)));
 	}
 	return result;
 }
