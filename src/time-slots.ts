@@ -168,13 +168,19 @@ export function openSteps(data: string, heading: string, days = NO_DAYS): string
 
 const indentOf = (line: string) => /^[ \t]*/.exec(line)?.[0].length ?? 0;
 
-/** 曜日だけを書いたバレット（チェックボックスでないもの）なら、今日の曜日か。曜日の項目でなければ null */
+/**
+ * 曜日だけを書いたバレット（チェックボックスでないもの）なら、今日の曜日か。曜日の項目でなければ null。
+ * カンマか読点で区切って複数書ける（すべて曜日の値のときだけ）
+ */
 function weekdayItem(line: string, days: StepDays): 'today' | 'other' | null {
 	if (OPEN_CHECKBOX.test(line)) return null;
 	const m = /^[ \t]*[-*+] (.*)$/.exec(line);
-	const text = m ? plainText(m[1] ?? '').toLowerCase() : '';
-	if (text === '' || !days.all.includes(text)) return null;
-	return text === days.today ? 'today' : 'other';
+	const names = (m ? plainText(m[1] ?? '').toLowerCase() : '')
+		.split(/[,、]/)
+		.map((s) => s.trim())
+		.filter((s) => s !== '');
+	if (names.length === 0 || !names.every((n) => days.all.includes(n))) return null;
+	return names.includes(days.today) ? 'today' : 'other';
 }
 
 /** 項目ごとに、その行と子の行（インデントが深い後続の行）に分ける */
