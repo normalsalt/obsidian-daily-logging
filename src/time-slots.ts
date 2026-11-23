@@ -139,19 +139,23 @@ function sectionLines(data: string, heading: string): string[] {
 
 const OPEN_CHECKBOX = /^[ \t]*[-*+] \[ \]/;
 
-/** 曜日の項目の判定に使う曜日。all は7つの曜日、today は論理上の今日の曜日 */
+/**
+ * 曜日の項目の判定に使う値。all は書ける値（7つの曜日と、毎日・平日・休日）、
+ * today は論理上の今日に当たる値（今日の曜日、毎日、平日か休日）
+ */
 export interface Weekdays {
 	all: string[];
-	today: string;
+	today: string[];
 }
 
 /** 中で使う曜日（小文字にしたもの） */
 type StepDays = Weekdays;
 
-const NO_DAYS: Weekdays = { all: [], today: '' };
+const NO_DAYS: Weekdays = { all: [], today: [] };
 
 function normalizeDays(days: Weekdays): StepDays {
-	return { all: days.all.map((d) => d.toLowerCase()), today: days.today.toLowerCase() };
+	const lower = (values: string[]) => values.map((d) => d.toLowerCase());
+	return { all: lower(days.all), today: lower(days.today) };
 }
 
 /**
@@ -170,7 +174,7 @@ const indentOf = (line: string) => /^[ \t]*/.exec(line)?.[0].length ?? 0;
 
 /**
  * 曜日だけを書いたバレット（チェックボックスでないもの）なら、今日の曜日か。曜日の項目でなければ null。
- * カンマか読点で区切って複数書ける（すべて曜日の値のときだけ）
+ * 毎日・平日・休日も書ける。カンマか読点で区切って複数書ける（すべて書ける値のときだけ）
  */
 function weekdayItem(line: string, days: StepDays): 'today' | 'other' | null {
 	if (OPEN_CHECKBOX.test(line)) return null;
@@ -180,7 +184,7 @@ function weekdayItem(line: string, days: StepDays): 'today' | 'other' | null {
 		.map((s) => s.trim())
 		.filter((s) => s !== '');
 	if (names.length === 0 || !names.every((n) => days.all.includes(n))) return null;
-	return names.includes(days.today) ? 'today' : 'other';
+	return names.some((n) => days.today.includes(n)) ? 'today' : 'other';
 }
 
 /** 項目ごとに、その行と子の行（インデントが深い後続の行）に分ける */

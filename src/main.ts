@@ -881,9 +881,19 @@ export default class DailyLoggingPlugin extends Plugin {
 		return firstOpenItem(data.slice(getFrontMatterInfo(data).contentStart), heading, days);
 	}
 
-	/** 曜日だけを書いたバレットの判定に使う曜日（7つの曜日と、論理上の今日の曜日） */
+	/**
+	 * 曜日だけを書いたバレットの判定に使う値。周期と同じく、毎日・平日・休日も使える
+	 * （平日・休日は休日のノートで決める）
+	 */
 	weekdays(ctx = this.taskContext()): Weekdays {
-		return { all: ctx.weekdays, today: ctx.weekdays[ctx.today.isoWeekday() - 1] ?? '' };
+		return {
+			all: [...ctx.weekdays, ctx.everyday, ctx.workday, ctx.holiday],
+			today: [
+				ctx.weekdays[ctx.today.isoWeekday() - 1] ?? '',
+				ctx.everyday,
+				ctx.isHoliday ? ctx.holiday : ctx.workday,
+			],
+		};
 	}
 
 	/** 右サイドバーにタスク一覧を開く（すでにあれば表示する） */

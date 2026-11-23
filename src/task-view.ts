@@ -224,8 +224,8 @@ export class TaskView extends ItemView {
 		const heading = this.plugin.settings.titleHeading.trim();
 		if (heading === '') return null;
 		const cached = this.titles.get(file.path);
-		// 曜日だけを書いたバレットで表示名が変わるので、曜日が変わったら読み直す
-		const day = days.today;
+		// 曜日だけを書いたバレットで表示名が変わるので、曜日や平日・休日が変わったら読み直す
+		const day = days.today.join('\n');
 		if (cached?.mtime === file.stat.mtime && cached.heading === heading && cached.day === day) {
 			return cached.title;
 		}
