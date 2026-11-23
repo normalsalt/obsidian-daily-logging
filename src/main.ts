@@ -35,6 +35,7 @@ import {
 	isBlank,
 	isEmptyItem,
 	logicalDate,
+	openItemBlock,
 	openSteps,
 	parseTime,
 	parseTimeSlots,
@@ -433,13 +434,20 @@ export default class DailyLoggingPlugin extends Plugin {
 		return { logged, links };
 	}
 
-	/** タスクのノートの、ステップの見出しの下にある未チェックのチェックボックス（1段インデント済み） */
+	/**
+	 * 記録の下にコピーする行（1段インデント済み）。ステップの見出しの下にある未チェックのチェックボックス。
+	 * なければ、表示名の見出しの一番上の未チェックのチェックボックス（タスク一覧の表示名と同じ項目）
+	 */
 	private async readSteps(file: TFile): Promise<string[]> {
-		const heading = this.settings.stepsHeading.trim();
-		if (heading === '') return [];
+		const steps = this.settings.stepsHeading.trim();
+		const title = this.settings.titleHeading.trim();
+		if (steps === '' && title === '') return [];
 		const data = await this.app.vault.read(file);
 		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
-		return openSteps(data.slice(getFrontMatterInfo(data).contentStart), heading);
+		const body = data.slice(getFrontMatterInfo(data).contentStart);
+		const lines = steps !== '' ? openSteps(body, steps) : [];
+		if (lines.length > 0 || title === '') return lines;
+		return openItemBlock(body, title);
 	}
 
 	/** タスクを終了する。予定日時は値だけ空にする */

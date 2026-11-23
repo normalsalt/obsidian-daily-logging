@@ -190,14 +190,39 @@ export function plainText(md: string): string {
 	);
 }
 
-/** 見出しの節で、一番上の未チェックのチェックボックスの文字列（インデントは問わない）。なければ null */
-export function firstOpenItem(data: string, heading: string): string | null {
-	for (const line of sectionLines(data, heading)) {
+/** 節の中で、文字のある一番上の未チェックのチェックボックス（インデントは問わない）の位置と文字列 */
+function findOpenItem(section: string[]): { index: number; text: string } | null {
+	for (const [index, line] of section.entries()) {
 		const m = OPEN_CHECKBOX.exec(line);
 		const text = m ? plainText(line.slice(m[0].length)) : '';
-		if (text !== '') return text;
+		if (text !== '') return { index, text };
 	}
 	return null;
+}
+
+/** 見出しの節で、一番上の未チェックのチェックボックスの文字列（インデントは問わない）。なければ null */
+export function firstOpenItem(data: string, heading: string): string | null {
+	return findOpenItem(sectionLines(data, heading))?.text ?? null;
+}
+
+/**
+ * firstOpenItem と同じチェックボックスを、子の行ごと取り出し、1段インデントして返す（openSteps と同じ形）。
+ * なければ空
+ */
+export function openItemBlock(data: string, heading: string): string[] {
+	const section = sectionLines(data, heading);
+	const found = findOpenItem(section);
+	if (!found) return [];
+	const first = section[found.index] ?? '';
+	const base = /^[ \t]*/.exec(first)?.[0].length ?? 0;
+	const result = [`\t${first.slice(base)}`];
+	for (const line of section.slice(found.index + 1)) {
+		if (isBlank(line)) continue;
+		const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
+		if (indent <= base) break;
+		result.push(`\t${line.slice(base)}`);
+	}
+	return result;
 }
 
 /** 「## 見出し」の節の末尾に1行追加する。見出しがなければ作る */
