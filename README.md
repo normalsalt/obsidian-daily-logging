@@ -134,6 +134,7 @@ With the [Obsidian CLI](https://help.obsidian.md/cli), you can list and log task
 | `daily-logging:forgot-end`     | Same as **Forgot to end**                                                    |
 | `daily-logging:done`           | Same as **Already done**                                                     |
 | `daily-logging:schedule`       | Sets `scheduled` with `at=`, such as `at="2026-12-01 14:00"`, `at=2026-12-01`, or `at=14:00` for today. Add `clear` instead to clear it. Nothing is logged. A task skipped today shows up again when you schedule it for today |
+| `daily-logging:create`         | Creates a task note at the top level of the vault. Add `repeat=` for a repeating task, or `at=` for a one-time task. See below |
 | `daily-logging:interruption`   | Logs an interruption, such as `name="Phone call"`                            |
 | `daily-logging:bedtime`        | Shows how many tasks would be skipped. Add `confirm` to go to bed            |
 | `daily-logging:fetch-calendar` | Fetches calendar events                                                      |
@@ -143,6 +144,13 @@ Choose the task with `file=<name>` (found like a link) or `path=<path>`. Without
 ```sh
 obsidian daily-logging:tasks
 obsidian daily-logging:start file="Weekly report"
+```
+
+To create a task, give its name and either `repeat=` or `at=`. The values of `repeat=` are the ones in your settings, separated by commas, such as `repeat="Monday, Thursday"`. You can also add `section=` (a tag of a time slot), `time=`, `tag=`, `estimate=`, `location=`, and `title=`, which is added as a checkbox under the **Title heading**. Only the properties you give are written. If a note with the same name already exists, nothing is created. Creating a task isn't logged.
+
+```sh
+obsidian daily-logging:create name="Take out the trash" repeat=Wednesday section=Night time=21:30
+obsidian daily-logging:create name="Dentist" at="2026-12-01 15:00"
 ```
 
 The commands don't change what Obsidian shows. The daily note isn't opened and no popups are shown. Instead, the logged line is printed, with the links in `location` when a task starts, and a note when a task without `repeat` days is skipped.

@@ -7,6 +7,8 @@ import {
 	GROUP_OTHER,
 	GROUP_RUNNING,
 	GROUP_SKIPPED,
+	PROP_DATE_FORMAT,
+	PROP_DAY_FORMAT,
 	UNKNOWN_TIME,
 	currentSlot,
 	formatDuration,
@@ -128,6 +130,26 @@ export function registerCli(plugin: DailyLoggingPlugin): void {
 	);
 
 	add(
+		'create',
+		'Create a task note at the top level of the vault. Nothing is logged',
+		{
+			name: { value: '<text>', description: 'Note name', required: true },
+			repeat: { value: '<days>', description: 'Comma-separated repeat values, such as Workday or Monday' },
+			at: {
+				value: '<YYYY-MM-DD HH:mm|YYYY-MM-DD|HH:mm>',
+				description: 'Scheduled date and time. HH:mm alone means that time today',
+			},
+			time: { value: '<HH:mm>', description: 'Time of day, used when the scheduled date is empty' },
+			section: { value: '<tag>', description: 'Tag of the time slot' },
+			tag: { value: '<text>', description: 'Tag to group the task under' },
+			estimate: { value: '<minutes>', description: 'Estimated time in minutes' },
+			location: { value: '<text>', description: 'URL or link to show when the task starts' },
+			title: { value: '<text>', description: 'Name shown in the task list, as a checkbox under the title heading' },
+		},
+		(params) => createTask(plugin, params),
+	);
+
+	add(
 		'interruption',
 		'Interrupt every running task and log an interruption',
 		{ name: { value: '<text>', description: 'What interrupted you', required: true } },
@@ -182,6 +204,106 @@ function parseAt(value: string | undefined, ctx: TaskContext): TaskDate {
 	const date = moment(v, 'YYYY-MM-DD', true);
 	if (date.isValid()) return { value: date, hasTime: false };
 	throw new CliError(`Invalid date and time: ${v}. Use YYYY-MM-DD HH:mm, YYYY-MM-DD, or HH:mm.`);
+}
+
+/** フラグの値。なければ（値なしのフラグも）空文字 */
+function flagValue(params: CliData, key: string): string {
+	const v = params[key];
+	return v === undefined || v === 'true' ? '' : v.trim();
+}
+
+/**
+ * 周期の値を、設定の表記にそろえる（大文字小文字は区別しない）。
+ * カンマか読点で区切る。曜日は月曜日からの順に並べる
+ */
+function parseRepeat(value: string, ctx: TaskContext): string[] {
+	const known = [ctx.everyday, ctx.workday, ctx.holiday, ...ctx.weekdays];
+	const picked = new Set<string>();
+	for (const raw of value.split(/[,、]/)) {
+		const v = raw.trim().toLowerCase();
+		if (v === '') continue;
+		const match = known.find((k) => k.toLowerCase() === v);
+		if (match === undefined) throw new CliError(`Unknown repeat value: ${raw.trim()}. Use ${known.join(', ')}.`);
+		picked.add(match);
+	}
+	return known.filter((k) => picked.has(k));
+}
+
+/** タスクのノートを保管庫の直下に作る。入力をすべて確かめてから作る（途中で失敗しても、ノートを残さない） */
+async function createTask(plugin: DailyLoggingPlugin, params: CliData): Promise<string> {
+	const { app } = plugin;
+	const ctx = plugin.taskContext();
+	const names = plugin.taskPropNames();
+
+	const name = flagValue(params, 'name');
+	if (name === '') throw new CliError('Enter a note name with name=<text>.');
+	// ファイル名に使えない文字と、リンクを壊す文字
+	if (/[\\/:*?"<>|#^[\]]/.test(name)) throw new CliError(`The name can't contain \\ / : * ? " < > | # ^ [ ].`);
+	const path = normalizePath(`${name}.md`);
+	if (app.vault.getAbstractFileByPath(path) || app.metadataCache.getFirstLinkpathDest(name, '')) {
+		throw new CliError(`A note named ${name} already exists.`);
+	}
+
+	// 書くプロパティ（書く順）。出力にも同じ順で出す
+	const props: [string, unknown, string][] = [];
+	const repeatValue = flagValue(params, 'repeat');
+	const atValue = flagValue(params, 'at');
+	if (repeatValue === '' && atValue === '') {
+		throw new CliError('Add repeat=<days> for a repeating task, or at=<YYYY-MM-DD HH:mm> for a one-time task.');
+	}
+	if (repeatValue !== '') {
+		const repeat = parseRepeat(repeatValue, ctx);
+		if (repeat.length === 0) throw new CliError('Enter repeat values with repeat=<days>.');
+		props.push([names.cycle, repeat, repeat.join(', ')]);
+	}
+	const section = flagValue(params, 'section');
+	if (section !== '') {
+		const tags = ctx.slots.map((s) => s.tag).filter((t) => t !== '');
+		const match = tags.find((t) => t.toLowerCase() === section.toLowerCase());
+		if (match === undefined) {
+			throw new CliError(
+				tags.length > 0 ? `Unknown section: ${section}. Use ${tags.join(', ')}.` : 'No time slot has a tag.',
+			);
+		}
+		props.push([names.section, match, match]);
+	}
+	if (atValue !== '') {
+		const at = parseAt(atValue, ctx);
+		const text = at.value.format(at.hasTime ? PROP_DATE_FORMAT : PROP_DAY_FORMAT);
+		props.push([names.scheduled, text, text]);
+	}
+	const timeValue = flagValue(params, 'time');
+	if (timeValue !== '') {
+		const minutes = parseTime(timeValue);
+		if (minutes === null) throw new CliError(`Invalid time: ${timeValue}. Use HH:mm.`);
+		const text = moment().startOf('day').add(minutes, 'minutes').format('HH:mm');
+		props.push([names.time, text, text]);
+	}
+	const tag = flagValue(params, 'tag').replace(/^#/, '');
+	if (tag !== '') props.push([names.tag, [tag], tag]);
+	const estimateValue = flagValue(params, 'estimate');
+	if (estimateValue !== '') {
+		const estimate = Number(estimateValue);
+		if (!Number.isFinite(estimate) || estimate <= 0) {
+			throw new CliError(`Invalid estimate: ${estimateValue}. Use a number of minutes.`);
+		}
+		props.push([names.estimate, estimate, String(estimate)]);
+	}
+	const location = flagValue(params, 'location');
+	if (location !== '') props.push([names.location, location, location]);
+
+	const title = flagValue(params, 'title');
+	const heading = plugin.settings.titleHeading.trim();
+	if (title !== '' && heading === '') throw new CliError('Set the title heading in the settings to use title=.');
+	const body = title !== '' ? `## ${heading}\n- [ ] ${title}\n` : '';
+
+	const file = await app.vault.create(path, body);
+	await app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+		for (const [key, value] of props) fm[key] = value;
+	});
+	const lines = [`Created ${file.path}.`, ...props.map(([key, , text]) => `${key}: ${text}`)];
+	if (title !== '') lines.push(`${heading}: ${title}`);
+	return lines.join('\n');
 }
 
 /** デイリーノートが使えなければ、通知ではなくエラーで返す */
