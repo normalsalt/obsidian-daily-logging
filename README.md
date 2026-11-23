@@ -74,7 +74,16 @@ The buttons at the top of the task list open daily notes. The middle one opens t
 
 Running tasks and the tasks in the current time slot are highlighted. A running task shows the time since it started, in place of its scheduled time.
 
-If a task's note has unchecked checkboxes under the **Title heading** (default: `Tasks`), the list shows the first one instead of the file name, even if it is nested under another item. Links and formatting such as bold are shown as plain text.
+If a task's note has unchecked checkboxes under the **Title heading** (default: `Tasks`), the list shows the first one instead of the file name, even if it is nested under another item. Links and formatting such as bold are shown as plain text. Bullets with only a weekday work the same way as in the steps (see below), so the name can change by the day:
+
+```markdown
+## Tasks
+- Monday
+	- [ ] Take out the burnable trash
+- Thursday
+	- [ ] Take out the recyclables
+- [ ] Take out the trash
+```
 
 To use `Workday` and `Holiday`, enter the name of a note in **Holiday note** in the settings. If the `scheduled` date of that note is today, today is a holiday. Otherwise, it is a workday. If you add an all-day event with that name to your calendar, its date is set when events are fetched (see [Calendar events](#calendar-events)). The holiday note itself isn't shown in the task list.
 
@@ -104,7 +113,7 @@ When you start a task, the unchecked checkboxes under the **Steps heading** of t
 	- [ ] Water the plants
 ```
 
-If there are no unchecked steps for the day, the first unchecked checkbox under the **Title heading**, the one shown as the task's name in the list, is copied the same way instead.
+If there are no unchecked steps for the day, the unchecked checkboxes under the **Title heading** are copied the same way instead, including the one shown as the task's name in the list.
 
 If the `location` property of a task has a URL or an internal link, it is shown in a popup when you start the task, so you can open it right away. The popup also has a button to open the task's note. Press Enter to open the first link, or Esc to close the popup. You can turn this off with **Show links when a task starts** in the settings.
 

@@ -139,10 +139,19 @@ function sectionLines(data: string, heading: string): string[] {
 
 const OPEN_CHECKBOX = /^[ \t]*[-*+] \[ \]/;
 
-/** 曜日の項目の判定に使う曜日。all は7つの曜日、today は論理上の今日の曜日（どちらも小文字） */
-interface StepDays {
+/** 曜日の項目の判定に使う曜日。all は7つの曜日、today は論理上の今日の曜日 */
+export interface Weekdays {
 	all: string[];
 	today: string;
+}
+
+/** 中で使う曜日（小文字にしたもの） */
+type StepDays = Weekdays;
+
+const NO_DAYS: Weekdays = { all: [], today: '' };
+
+function normalizeDays(days: Weekdays): StepDays {
+	return { all: days.all.map((d) => d.toLowerCase()), today: days.today.toLowerCase() };
 }
 
 /**
@@ -150,11 +159,10 @@ interface StepDays {
  * チェック済みや普通の項目、本文は、子ごと飛ばす。
  * 曜日だけを書いたバレットは、どの深さでも、今日の曜日ならその行の代わりに子の行を使い、違う曜日なら子ごと外す
  */
-export function openSteps(data: string, heading: string, weekdays: string[] = [], today = ''): string[] {
-	const days = { all: weekdays.map((d) => d.toLowerCase()), today: today.toLowerCase() };
+export function openSteps(data: string, heading: string, days = NO_DAYS): string[] {
 	return collectSteps(
 		sectionLines(data, heading).filter((line) => !isBlank(line)),
-		days,
+		normalizeDays(days),
 	);
 }
 
@@ -272,29 +280,20 @@ function findOpenItem(section: string[]): { index: number; text: string } | null
 	return null;
 }
 
-/** 見出しの節で、一番上の未チェックのチェックボックスの文字列（インデントは問わない）。なければ null */
-export function firstOpenItem(data: string, heading: string): string | null {
-	return findOpenItem(sectionLines(data, heading))?.text ?? null;
+/**
+ * 表示名の見出しの節の行（空行は除く）。曜日だけを書いたバレットは、どの深さでも、
+ * 今日の曜日ならその行を消して子の行を上げ、違う曜日なら子ごと消す
+ */
+function itemSection(data: string, heading: string, days: Weekdays): string[] {
+	return unwrapWeekdays(
+		sectionLines(data, heading).filter((line) => !isBlank(line)),
+		normalizeDays(days),
+	);
 }
 
-/**
- * firstOpenItem と同じチェックボックスを、子の行ごと取り出し、1段インデントして返す（openSteps と同じ形）。
- * なければ空
- */
-export function openItemBlock(data: string, heading: string): string[] {
-	const section = sectionLines(data, heading);
-	const found = findOpenItem(section);
-	if (!found) return [];
-	const first = section[found.index] ?? '';
-	const base = /^[ \t]*/.exec(first)?.[0].length ?? 0;
-	const result = [`\t${first.slice(base)}`];
-	for (const line of section.slice(found.index + 1)) {
-		if (isBlank(line)) continue;
-		const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
-		if (indent <= base) break;
-		result.push(`\t${line.slice(base)}`);
-	}
-	return result;
+/** 見出しの節で、一番上の未チェックのチェックボックスの文字列（インデントは問わない）。なければ null */
+export function firstOpenItem(data: string, heading: string, days = NO_DAYS): string | null {
+	return findOpenItem(itemSection(data, heading, days))?.text ?? null;
 }
 
 /** 「## 見出し」の節の末尾に1行追加する。見出しがなければ作る */

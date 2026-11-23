@@ -28,6 +28,7 @@ import {
 	slotEnd,
 } from './task';
 import type { Moment, TaskContext, TaskEntry } from './task';
+import type { Weekdays } from './time-slots';
 import { isIconId } from './settings';
 import { SleepConfirmModal } from './link-modal';
 
@@ -77,7 +78,7 @@ export class TaskView extends ItemView {
 	private elapsedEls: { el: HTMLElement; start: Moment }[] = [];
 
 	/** ノートから読んだ表示名（パスごと。読んだときの更新日時と見出し名が同じ間だけ使う） */
-	private titles = new Map<string, { mtime: number; heading: string; title: string | null }>();
+	private titles = new Map<string, { mtime: number; heading: string; day: string; title: string | null }>();
 
 	/** 表示名を読んでいるパス（同じノートを重ねて読まない） */
 	private loadingTitles = new Set<string>();
@@ -219,19 +220,23 @@ export class TaskView extends ItemView {
 	 * タスクの表示名。読んだものがなければ、読み始めて、読み終えたら描き直す。
 	 * 読み終えるまでは前に読んだ表示名（なければ null で、ファイル名になる）を返す
 	 */
-	private titleOf(file: TFile): string | null {
+	private titleOf(file: TFile, days: Weekdays): string | null {
 		const heading = this.plugin.settings.titleHeading.trim();
 		if (heading === '') return null;
 		const cached = this.titles.get(file.path);
-		if (cached?.mtime === file.stat.mtime && cached.heading === heading) return cached.title;
+		// 曜日だけを書いたバレットで表示名が変わるので、曜日が変わったら読み直す
+		const day = days.today;
+		if (cached?.mtime === file.stat.mtime && cached.heading === heading && cached.day === day) {
+			return cached.title;
+		}
 
 		if (!this.loadingTitles.has(file.path)) {
 			this.loadingTitles.add(file.path);
 			this.plugin
-				.readTitle(file, heading)
+				.readTitle(file, heading, days)
 				.then((title) => {
 					const changed = (cached?.title ?? null) !== title;
-					this.titles.set(file.path, { mtime: file.stat.mtime, heading, title });
+					this.titles.set(file.path, { mtime: file.stat.mtime, heading, day, title });
 					if (changed) this.render();
 				})
 				.catch(reportError)
@@ -252,7 +257,8 @@ export class TaskView extends ItemView {
 		const root = this.listEl;
 		if (!root) return; // まだ開かれていない
 		const ctx = this.plugin.taskContext();
-		const entries = this.plugin.collectTasks(ctx, (file) => this.titleOf(file) ?? file.basename);
+		const days = this.plugin.weekdays(ctx);
+		const entries = this.plugin.collectTasks(ctx, (file) => this.titleOf(file, days) ?? file.basename);
 		this.shown = new Set(entries.map((e) => e.file.path));
 		this.shownDay = ctx.today.format('YYYY-MM-DD');
 		this.shownAvailable = getDailyNotes(this.app) !== null;

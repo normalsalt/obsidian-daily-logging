@@ -35,12 +35,12 @@ import {
 	isBlank,
 	isEmptyItem,
 	logicalDate,
-	openItemBlock,
 	openSteps,
 	parseTime,
 	parseTimeSlots,
 	resolvePlacement,
 } from './time-slots';
+import type { Weekdays } from './time-slots';
 import {
 	GROUP_SKIPPED,
 	PROP_DATE_FORMAT,
@@ -437,7 +437,7 @@ export default class DailyLoggingPlugin extends Plugin {
 	/**
 	 * 記録の下にコピーする行（1段インデント済み）。ステップの見出しの下にある未チェックのチェックボックス
 	 * （どの深さでも、今日の曜日だけを書いたバレットの下にあるものも）。
-	 * なければ、表示名の見出しの一番上の未チェックのチェックボックス（タスク一覧の表示名と同じ項目）
+	 * なければ、表示名の見出しの節を同じ決まりで読む
 	 */
 	private async readSteps(file: TFile): Promise<string[]> {
 		const steps = this.settings.stepsHeading.trim();
@@ -447,11 +447,10 @@ export default class DailyLoggingPlugin extends Plugin {
 		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
 		const body = data.slice(getFrontMatterInfo(data).contentStart);
 		// 曜日だけを書いたバレットは、今日（論理上）の曜日なら子の行を使い、違う曜日なら外す
-		const ctx = this.taskContext();
-		const weekday = ctx.weekdays[ctx.today.isoWeekday() - 1] ?? '';
-		const lines = steps !== '' ? openSteps(body, steps, ctx.weekdays, weekday) : [];
+		const days = this.weekdays();
+		const lines = steps !== '' ? openSteps(body, steps, days) : [];
 		if (lines.length > 0 || title === '') return lines;
-		return openItemBlock(body, title);
+		return openSteps(body, title, days);
 	}
 
 	/** タスクを終了する。予定日時は値だけ空にする */
@@ -844,8 +843,9 @@ export default class DailyLoggingPlugin extends Plugin {
 	async orderedTasks(ctx: TaskContext): Promise<TaskEntry[]> {
 		const files = this.collectTasks(ctx, (f) => f.basename).map((e) => e.file);
 		const titles = new Map<string, string>();
+		const days = this.weekdays(ctx);
 		for (const file of files) {
-			const title = await this.readTitle(file);
+			const title = await this.readTitle(file, undefined, days);
 			if (title) titles.set(file.path, title);
 		}
 		return orderTasks(this.collectTasks(ctx, (f) => titles.get(f.path) ?? f.basename));
@@ -866,14 +866,24 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	/**
-	 * タスクのノートの表示名。見出し（既定は設定の Title heading）の下の、一番上の未チェックのチェックボックスの文字列。
+	 * タスクのノートの表示名。見出し（既定は設定の Title heading）の下の、一番上の未チェックのチェックボックスの文字列
+	 * （曜日だけを書いたバレットは、今日の曜日のものだけを見る）。
 	 * なければ null
 	 */
-	async readTitle(file: TFile, heading = this.settings.titleHeading.trim()): Promise<string | null> {
+	async readTitle(
+		file: TFile,
+		heading = this.settings.titleHeading.trim(),
+		days = this.weekdays(),
+	): Promise<string | null> {
 		if (heading === '') return null;
 		const data = await this.app.vault.cachedRead(file);
 		// フロントマターの「# コメント」を見出しと取り違えないよう、本文だけを見る
-		return firstOpenItem(data.slice(getFrontMatterInfo(data).contentStart), heading);
+		return firstOpenItem(data.slice(getFrontMatterInfo(data).contentStart), heading, days);
+	}
+
+	/** 曜日だけを書いたバレットの判定に使う曜日（7つの曜日と、論理上の今日の曜日） */
+	weekdays(ctx = this.taskContext()): Weekdays {
+		return { all: ctx.weekdays, today: ctx.weekdays[ctx.today.isoWeekday() - 1] ?? '' };
 	}
 
 	/** 右サイドバーにタスク一覧を開く（すでにあれば表示する） */
