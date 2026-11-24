@@ -146,6 +146,7 @@ With the [Obsidian CLI](https://help.obsidian.md/cli), you can list and log task
 | Command                        | What it does                                                                 |
 | ------------------------------ | ---------------------------------------------------------------------------- |
 | `daily-logging:tasks`          | Lists today's tasks in the same order as the task list. Add `format=json` for JSON |
+| `daily-logging:unstarted`      | Lists notes at the top level of the vault that have `repeat` or `scheduled`, even with no value, and have never been started (`started` is empty). Add `format=json` for JSON |
 | `daily-logging:start`          | Starts a task                                                                |
 | `daily-logging:end`            | Ends a running task                                                          |
 | `daily-logging:interrupt`      | Interrupts a running task                                                    |

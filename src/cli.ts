@@ -1,7 +1,7 @@
 import { moment, normalizePath } from 'obsidian';
 import type { CliData, CliFlags, TFile } from 'obsidian';
 import type DailyLoggingPlugin from './main';
-import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, reportError } from './daily-notes';
+import { NO_DAILY_NOTES_MESSAGE, getDailyNotes, isDailyNote, reportError } from './daily-notes';
 import type { LoggedLine } from './daily-notes';
 import {
 	GROUP_OTHER,
@@ -56,6 +56,13 @@ export function registerCli(plugin: DailyLoggingPlugin): void {
 		"List today's tasks, in the same order as the task list",
 		{ format: { value: 'text|json', description: 'Output format (default: text)' } },
 		(params) => listTasks(plugin, params.format === 'json'),
+	);
+
+	add(
+		'unstarted',
+		'List notes at the top level of the vault that have the repeat or scheduled property, even empty, and have never been started',
+		{ format: { value: 'text|json', description: 'Output format (default: text)' } },
+		(params) => listUnstarted(plugin, params.format === 'json'),
 	);
 
 	const taskAction = (
@@ -400,6 +407,50 @@ async function listTasks(plugin: DailyLoggingPlugin, json: boolean): Promise<str
 		lines.push(`- ${row.time ? `${row.time} ` : ''}${row.name} | ${fields.join(' | ')}`);
 	}
 	return lines.join('\n');
+}
+
+/**
+ * 一度も開始していないタスク。保管庫の直下の Markdown で、周期か予定日時のプロパティがあり（値は空でもよい）、
+ * 開始日時が空のもの（プロパティがなくてもよい）。デイリーノートと休日のノートは除く。名前の順
+ */
+async function listUnstarted(plugin: DailyLoggingPlugin, json: boolean): Promise<string> {
+	const { app } = plugin;
+	const names = plugin.taskPropNames();
+	const dn = getDailyNotes(app);
+	const holidayNote = plugin.holidayNote();
+	const has = (fm: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(fm, key);
+	const isEmpty = (v: unknown) =>
+		v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
+	// 値はプロパティの書かれたとおりに出す（空なら null）
+	const valueOf = (v: unknown) => (isEmpty(v) ? null : Array.isArray(v) ? v.map(String).join(', ') : String(v));
+
+	const files = app.vault
+		.getMarkdownFiles()
+		.filter((f) => f.parent?.isRoot() && f !== holidayNote && !(dn && isDailyNote(f, dn)))
+		.sort((a, b) => a.basename.localeCompare(b.basename));
+	const days = plugin.weekdays();
+	const rows = [];
+	for (const file of files) {
+		const fm = app.metadataCache.getFileCache(file)?.frontmatter;
+		if (!fm || !(has(fm, names.cycle) || has(fm, names.scheduled)) || !isEmpty(fm[names.start])) continue;
+		rows.push({
+			name: (await plugin.readTitle(file, undefined, days)) ?? file.basename,
+			path: file.path,
+			repeat: valueOf(fm[names.cycle]),
+			scheduled: valueOf(fm[names.scheduled]),
+		});
+	}
+
+	if (json) return JSON.stringify({ tasks: rows }, null, 2);
+	if (rows.length === 0) return 'No tasks that have never been started.';
+	return rows
+		.map((row) => {
+			const fields = [`path=${row.path}`];
+			if (row.repeat !== null) fields.push(`repeat=${row.repeat}`);
+			if (row.scheduled !== null) fields.push(`scheduled=${row.scheduled}`);
+			return `- ${row.name} | ${fields.join(' | ')}`;
+		})
+		.join('\n');
 }
 
 /** 予定時刻。今日なら HH:mm、ほかの日なら日付も付ける。時刻がなければ日付だけ（今日なら null） */
