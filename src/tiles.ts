@@ -35,6 +35,18 @@ function shows(leaf: WorkspaceLeaf, file: TFile): boolean {
 	return leaf.view instanceof FileView && leaf.view.file?.path === file.path;
 }
 
+/** タブが空か、右に開くファイルだけで、右に開くファイルが1つ以上あるか */
+function onlyRight(leaves: WorkspaceLeaf[], sideOf: (file: TFile) => Side): boolean {
+	let found = false;
+	for (const leaf of leaves) {
+		if (leaf.view.getViewType() === 'empty') continue;
+		const file = leaf.view instanceof FileView ? leaf.view.file : null;
+		if (!file || sideOf(file) !== 'right') return false;
+		found = true;
+	}
+	return found;
+}
+
 /**
  * WorkspaceLeaf.prototype.openFile を差し替え、side が決めたタイルでファイルを開く。
  * ノートを開く処理（リンク、ファイルエクスプローラー、クイックスイッチャーなど）は、ここを通る。
@@ -59,10 +71,14 @@ export function routeOpenFile(app: App, sideOf: (file: TFile) => Side): () => vo
 
 		const leaves = rootLeaves(app);
 		const groups = tiles(leaves);
-		// 行き先のタイル。null なら、右に分割して作る
+		// 行き先のタイル。null なら、分割して作る（before なら左、そうでなければ右）
 		let dest: WorkspaceParent | null;
-		if (groups.length <= 1) dest = side === 'left' ? this.parent : null;
-		else dest = (side === 'left' ? groups[0] : groups[groups.length - 1]) ?? null;
+		let before = false;
+		if (groups.length <= 1) {
+			// タイルが1つだけでも、デイリーノートしかなければ、左に分割してそれを右に残す
+			before = side === 'left' && onlyRight(leaves, sideOf);
+			dest = side === 'left' && !before ? this.parent : null;
+		} else dest = (side === 'left' ? groups[0] : groups[groups.length - 1]) ?? null;
 		if (dest === this.parent) return original.call(this, file, openState);
 
 		const recent = workspace.getMostRecentLeaf();
@@ -80,7 +96,7 @@ export function routeOpenFile(app: App, sideOf: (file: TFile) => Side): () => vo
 						dest,
 						leaves.filter((l) => l.parent === dest).length,
 					)
-				: workspace.createLeafBySplit(this, 'vertical');
+				: workspace.createLeafBySplit(this, 'vertical', before);
 			await original.call(leaf, file, openState);
 		}
 
