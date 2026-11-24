@@ -397,24 +397,25 @@ export default class DailyLoggingPlugin extends Plugin {
 	}
 
 	/**
-	 * 開始と開始忘れの共通処理。記録した行と、場所のプロパティのリンクを返す。
-	 * ui が false なら、記録した行もリンクのモーダルも出さない（CLI から実行するとき）
+	 * 開始と開始忘れの共通処理。記録した行と、場所のプロパティのリンクと、ノートを開くかを返す。
+	 * ui が false なら、記録した行もリンクのモーダルも出さず、ノートも開かない（CLI から実行するとき）
 	 */
 	async beginTask(
 		file: TFile,
 		unknownStart: boolean,
 		ui = true,
-	): Promise<{ logged: LoggedLine | null; links: FoundLink[] }> {
-		if (!this.ensureDailyNotes()) return { logged: null, links: [] };
+	): Promise<{ logged: LoggedLine | null; links: FoundLink[]; open: boolean }> {
+		if (!this.ensureDailyNotes()) return { logged: null, links: [], open: false };
 
 		const now = moment();
 		const names = this.taskPropNames();
 		const updated = this.waitForMetadata(file); // 書き換えより前に待ち始める
-		const before: { location: unknown } = { location: null };
+		const before: { location: unknown; open: boolean } = { location: null, open: false };
 
 		// フロントマターがなければ、processFrontMatter が作る
 		await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
 			before.location = fm[names.location];
+			before.open = fm[names.open] === true;
 			fm[names.start] = now.format(unknownStart ? PROP_DAY_FORMAT : PROP_DATE_FORMAT);
 			// 前回の終了日時は値だけ空にする（同じ分に終了・開始しても実行中と判定できるように）
 			if (names.end in fm) fm[names.end] = null;
@@ -427,11 +428,14 @@ export default class DailyLoggingPlugin extends Plugin {
 		await updated;
 		// 場所のプロパティに URL か内部リンクがあれば、すぐ開けるように出す
 		const links = this.settings.showLinksOnStart ? findLinks(before.location) : [];
-		if (!ui) return { logged, links };
+		const open = before.open;
+		if (!ui) return { logged, links, open };
 
+		// タスクのノートを先に開き、デイリーノートの記録の行を後から前に出す
+		if (open) await this.openTaskNote(file);
 		await this.showLoggedLine(logged, steps.length > 0 || this.settings.childBullet);
 		if (links.length > 0) new LinkModal(this.app, file.basename, links, file).open();
-		return { logged, links };
+		return { logged, links, open };
 	}
 
 	/**
@@ -704,6 +708,18 @@ export default class DailyLoggingPlugin extends Plugin {
 		return dn && isDailyNote(file, dn) ? 'right' : 'left';
 	}
 
+	/** タスクのノートを、開いているタブがあればそのタイルで前に出し、なければ新しいタブで開く */
+	private async openTaskNote(file: TFile): Promise<void> {
+		const { workspace } = this.app;
+		let leaf = this.leafShowing(file);
+		if (!leaf) {
+			leaf = workspace.getLeaf('tab');
+			await leaf.openFile(file);
+			leaf = this.leafShowing(file) ?? leaf;
+		}
+		await workspace.revealLeaf(leaf);
+	}
+
 	/** そのファイルを開いているタブがあれば前に出し、なければ今のタブで開く */
 	private async revealFile(file: TFile): Promise<void> {
 		const { workspace } = this.app;
@@ -959,6 +975,7 @@ export default class DailyLoggingPlugin extends Plugin {
 			estimate: pick(s.estimateProp, d.estimateProp),
 			tag: pick(s.tagProp, d.tagProp),
 			location: pick(s.locationProp, d.locationProp),
+			open: pick(s.openProp, d.openProp),
 		};
 	}
 

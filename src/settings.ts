@@ -88,6 +88,8 @@ export interface DailyLoggingSettings {
 	calendarToken: string;
 	/** 予定の場所を書くプロパティ名 */
 	locationProp: string;
+	/** オンなら開始時にタスクのノートも開く、チェックボックスのプロパティ名 */
+	openProp: string;
 }
 
 export const DEFAULT_SETTINGS: DailyLoggingSettings = {
@@ -148,6 +150,7 @@ export const DEFAULT_SETTINGS: DailyLoggingSettings = {
 	calendarUrl: '',
 	calendarToken: '',
 	locationProp: 'location',
+	openProp: 'open',
 };
 
 /** "md, .Canvas  pdf" → Set { 'md', 'canvas', 'pdf' } */
@@ -363,6 +366,11 @@ export class DailyLoggingSettingTab extends PluginSettingTab {
 						name: 'Location property',
 						desc: 'Text property that holds the location of an event. Its URLs and links are shown when the task starts.',
 						control: { type: 'text', key: 'locationProp', placeholder: d.locationProp },
+					},
+					{
+						name: 'Open property',
+						desc: 'Checkbox property. If it is checked, the note of the task is also opened when the task starts.',
+						control: { type: 'text', key: 'openProp', placeholder: d.openProp },
 					},
 				],
 			},

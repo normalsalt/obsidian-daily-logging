@@ -53,6 +53,7 @@ Open the list from the ribbon or with the **Open task list** command. Any Markdo
 | `time`      | Text        | Time of day, such as `18:00`. Used like the time of `scheduled` when `scheduled` is empty |
 | `skipped`   | Date & time | Set by the plugin when you skip the task. Hides the task from the list on this day, unless it is running. Cleared when you start the task or mark it as already done |
 | `estimate`  | Number      | Estimated time in minutes. The task's row in the list is taller by half its height for every 60 minutes, such as 1.5 times for `60`. The name wraps onto one more line for every 60 minutes, such as 2 lines for `60` |
+| `open`      | Checkbox    | If checked, the task's note is also opened when you start the task |
 | `started`   | Date & time | Set by the plugin when you start the task                      |
 | `ended`     | Date & time | Set by the plugin when you end or interrupt the task           |
 
@@ -174,7 +175,7 @@ obsidian daily-logging:create name="Take out the trash" repeat=Wednesday section
 obsidian daily-logging:create name="Dentist" at="2026-12-01 15:00"
 ```
 
-The commands don't change what Obsidian shows. The daily note isn't opened and no popups are shown. Instead, the logged line is printed, with the links in `location` when a task starts, and a note when a task without `repeat` days is skipped.
+The commands don't change what Obsidian shows. The daily note isn't opened and no popups are shown. Instead, the logged line is printed, with the links in `location` and the path of the note to open (if `open` is checked) when a task starts, and a note when a task without `repeat` days is skipped.
 
 ## Notes
 

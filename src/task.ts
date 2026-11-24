@@ -16,6 +16,7 @@ export interface TaskPropNames {
 	estimate: string;
 	tag: string;
 	location: string;
+	open: string;
 }
 
 export interface TaskDate {

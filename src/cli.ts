@@ -82,12 +82,12 @@ export function registerCli(plugin: DailyLoggingPlugin): void {
 		});
 
 	taskAction('start', 'Start a task', false, async (file) => {
-		const { logged, links } = await plugin.beginTask(file, false, false);
-		return [loggedText(logged), ...linkLines(links)].join('\n');
+		const { logged, links, open } = await plugin.beginTask(file, false, false);
+		return [loggedText(logged), ...linkLines(links), ...openLines(file, open)].join('\n');
 	});
 	taskAction('forgot-start', 'Mark a task as running from an unknown time', false, async (file) => {
-		const { logged, links } = await plugin.beginTask(file, true, false);
-		return [loggedText(logged), ...linkLines(links)].join('\n');
+		const { logged, links, open } = await plugin.beginTask(file, true, false);
+		return [loggedText(logged), ...linkLines(links), ...openLines(file, open)].join('\n');
 	});
 	taskAction('end', 'End a running task', true, async (file) =>
 		loggedText(await plugin.finishTask(file, 'end', false)),
@@ -343,6 +343,11 @@ function loggedText(logged: LoggedLine | null): string {
 
 function linkLines(links: { text: string }[]): string[] {
 	return links.length > 0 ? ['Links:', ...links.map((l) => `- ${l.text}`)] : [];
+}
+
+/** 開くプロパティがオンなら、開くはずだったノート（CLI ではノートを開かない） */
+function openLines(file: TFile, open: boolean): string[] {
+	return open ? [`Open note: ${file.path}`] : [];
 }
 
 /** 今日のタスク一覧 */
