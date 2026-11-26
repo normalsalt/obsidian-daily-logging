@@ -114,7 +114,7 @@ When you start a task, the unchecked checkboxes under the **Steps heading** of t
 	- [ ] Water the plants
 ```
 
-If there are no unchecked steps for the day, the first unchecked checkbox under the **Title heading** is copied the same way instead, with the lines nested under it. This is the one shown as the task's name in the list.
+If there are no unchecked steps for the day, the first unchecked checkbox under the **Title heading** is copied the same way instead, with the lines nested under it. This is the one shown as the task's name in the list. It is copied as a plain bullet, not a checkbox, because checking it in the daily note doesn't check it in the task's note.
 
 If the `location` property of a task has a URL or an internal link, it is shown in a popup when you start the task, so you can open it right away. The popup also has a button to open the task's note. Press Enter to open the first link, or Esc to close the popup. You can turn this off with **Show links when a task starts** in the settings.
 

@@ -441,7 +441,8 @@ export default class DailyLoggingPlugin extends Plugin {
 	/**
 	 * 記録の下にコピーする行（1段インデント済み）。ステップの見出しの下にある未チェックのチェックボックス
 	 * （どの深さでも、今日の曜日だけを書いたバレットの下にあるものも）。
-	 * なければ、表示名の見出しの節を同じ決まりで読み、一番上の項目だけを使う
+	 * なければ、表示名の見出しの節を同じ決まりで読み、一番上の項目だけを使う。
+	 * その行のチェックボックスは普通のバレットにする（デイリーノートでチェックしても、ノートは変わらないため）
 	 */
 	private async readSteps(file: TFile): Promise<string[]> {
 		const steps = this.settings.stepsHeading.trim();
@@ -457,7 +458,8 @@ export default class DailyLoggingPlugin extends Plugin {
 		// 表示名の見出しからは、一番上の項目だけ（子の行を含む）
 		const items = openSteps(body, title, days);
 		const end = items.findIndex((line, i) => i > 0 && !/^\t[ \t]/.test(line));
-		return end === -1 ? items : items.slice(0, end);
+		const [first, ...rest] = end === -1 ? items : items.slice(0, end);
+		return first === undefined ? [] : [first.replace(/^([ \t]*[-*+] )\[ \] /, '$1'), ...rest];
 	}
 
 	/** タスクを終了する。予定日時は値だけ空にする */
