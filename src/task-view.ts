@@ -491,6 +491,8 @@ export class TaskView extends ItemView {
 	private renderTask(list: HTMLElement, entry: TaskEntry, ctx: TaskContext): void {
 		const item = list.createEl('li', { cls: 'daily-logging-task' });
 		if (isRunning(entry.props)) item.addClass('is-running');
+		// 予定日時（予定時刻だけのものは除く）があれば、時刻か名前を強調する
+		else if (entry.props.scheduled) item.addClass('is-scheduled');
 		// 見積時間があれば、その分だけ行を高くし、名前は見積時間に応じた行数まで折り返す
 		if (entry.props.estimate !== null) {
 			const lines = nameLines(entry.props);

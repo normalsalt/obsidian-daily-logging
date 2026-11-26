@@ -226,6 +226,19 @@
 	font-weight: var(--font-semibold);
 }
 
+/*
+ * 予定日時のあるタスク（予定時刻だけのものは除く）は、予定時刻をオレンジ色の太字にする
+ * （実行中の経過時間のアクセント色と区別する）。時刻を出していない行は、名前を太字にする
+ */
+.daily-logging-task.is-scheduled .daily-logging-task-meta {
+	color: var(--color-orange);
+	font-weight: var(--font-semibold);
+}
+
+.daily-logging-task.is-scheduled:not(:has(.daily-logging-task-meta)) .daily-logging-task-name {
+	font-weight: var(--font-semibold);
+}
+
 /* ボタンは中身に合わせた高さにし、文字は行と同じ大きさにする */
 .daily-logging-task-button {
 	flex: none;
