@@ -633,7 +633,8 @@ export default class DailyLoggingPlugin extends Plugin {
 	/**
 	 * 就寝する。files を順に（実行中なら終了してから）スキップし、最後に就寝を記録する。
 	 * 就寝の行はリンクなしで、下にバレットを入れない。
-	 * ui が false なら、就寝の行も表示しない（CLI から実行するとき）。就寝の行を返す
+	 * 記録したら、デイリーノートを1つ残して、中央と別ウィンドウのタブをすべて閉じる。
+	 * ui が false なら、タブを閉じず、就寝の行も表示しない（CLI から実行するとき）。就寝の行を返す
 	 */
 	async goToBed(files: TFile[], ui = true): Promise<LoggedLine | null> {
 		if (!this.ensureDailyNotes()) return null;
@@ -651,8 +652,20 @@ export default class DailyLoggingPlugin extends Plugin {
 		const labels = this.taskLabels();
 		const text = `- ${now.format('HH:mm')} ${labels.sleep} ${labels.start}`;
 		const logged = await this.logLine(now, () => true, () => text, []);
-		if (ui) await this.showLoggedLine(logged, false);
+		if (!ui) return logged;
+		if (logged) this.closeTabsExcept(logged.file);
+		await this.showLoggedLine(logged, false);
 		return logged;
+	}
+
+	/** 中央と別ウィンドウのタブを、file を表示しているタブ1つ（行き先のタイルのもの）を残して、すべて閉じる */
+	private closeTabsExcept(file: TFile): void {
+		const keep = this.leafShowing(file);
+		const leaves: WorkspaceLeaf[] = [];
+		this.app.workspace.iterateRootLeaves((leaf) => {
+			if (leaf !== keep) leaves.push(leaf);
+		});
+		for (const leaf of leaves) leaf.detach();
 	}
 
 	/**
